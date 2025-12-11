@@ -1,0 +1,201 @@
+🔧 Prompt to Paste into Replit AI
+PROJECT CONTEXT – PLEASE READ AND REMEMBER FOR THIS SESSION
+
+I am building a crypto arbitrage bot + dashboard. I need your help writing and wiring up the backend, bot logic, and frontend, and then preparing it so I can deploy the backend on Railway and keep the frontend on Replit.
+
+🧠 Strategy (Important Concept)
+This is a market-neutral arbitrage bot, NOT a directional trading bot.
+
+I will hold BTC/USDT float on one exchange (e.g. Binance)
+
+And ZAR float on a South African exchange (e.g. Luno)
+
+The bot must:
+
+Monitor prices on both exchanges
+
+When a spread exists that is large enough to cover fees, slippage, and a profit margin, it must:
+
+Sell BTC on the more expensive exchange
+
+Buy BTC on the cheaper exchange
+
+Do this as close to simultaneously as possible
+
+This keeps me hedged (no long-term BTC exposure), and I only profit from the price difference between exchanges, not from BTC going up.
+
+Spreads can appear in both directions:
+
+Sometimes Binance is more expensive than Luno
+
+Sometimes Luno is more expensive than Binance
+
+The bot must support both directions and manage float imbalance logically (e.g. reduce trade size if one side’s balance gets low, and use reverse arbitrage + periodic rebalancing to correct).
+
+🏗️ Architecture I Want
+Backend:
+
+Language: Python
+
+Framework: FastAPI
+
+Environment:
+
+I’ll prototype in Replit, then deploy the backend to Railway as an always-on service.
+
+Responsibilities:
+
+Run a background arbitrage loop (or scheduled task).
+
+Connect to Luno and Binance (later maybe VALR, Ovex etc.) via REST APIs.
+
+Detect arbitrage opportunities (both directions).
+
+Execute hedged trades when spread >= configurable threshold.
+
+Track:
+
+Trades (timestamp, direction, size, profit, exchange pair)
+
+PnL (profit and loss)
+
+Current float per exchange (ZAR, BTC, USDT).
+
+Expose REST API endpoints for the frontend, for example:
+
+GET /status – health, running flag, latest PnL summary
+
+GET /reports/pnl – PnL over time
+
+GET /reports/trades – recent trades
+
+GET /floats – current balances per exchange
+
+POST /config – set thresholds, max trade size, etc. (later)
+
+Use environment variables for secrets and config (API keys, thresholds).
+
+Use Postgres (Railway’s managed DB) for persistence (not just in-memory).
+
+Frontend:
+
+Hosted on Replit
+
+Likely React (but I’m open to your suggestions as long as it’s simple)
+
+Should:
+
+Call the backend (on Railway) via HTTPS.
+
+Show:
+
+Bot status (running / stopped)
+
+Total PnL and trade count
+
+Recent trades table
+
+Exchange balances (float per exchange)
+
+Later: configurations UI (edit thresholds, etc.).
+
+🔐 Security & Config
+All API keys must come from environment variables, NOT hard-coded.
+
+In Replit: .env or secrets.
+
+In Railway: environment variables in the dashboard.
+
+Please help me keep secrets and config separated nicely.
+
+🚀 Deployment Requirements
+Help me structure the code so that:
+
+I can push the backend from Replit to GitHub.
+
+Railway can deploy it by running something like:
+uvicorn main:app --host 0.0.0.0 --port $PORT
+
+The arbitrage loop starts on app startup (startup event) and runs in the background.
+
+The frontend uses a constant like:
+const API_BASE = "https://<my-railway-url>.up.railway.app";
+and calls endpoints like ${API_BASE}/status.
+
+📌 What I Need From You
+When I ask you questions or for code:
+
+Please assume this exact project context.
+
+Prefer clear folder structure, e.g.:
+
+app/main.py (FastAPI entrypoint)
+
+app/arb/loop.py (arbitrage loop)
+
+app/arb/exchanges/luno.py
+
+app/arb/exchanges/binance.py
+
+app/models/ for DB models
+
+app/routes/ for API routes
+
+When writing code:
+
+Use realistic function names like get_luno_price(), get_binance_price(), execute_hedged_trade().
+
+Show me where to plug in the real exchange logic.
+
+Don’t hard-code secrets.
+
+When I ask about “connecting frontend to backend”, you should think:
+
+React on Replit → calls FastAPI on Railway via REST.
+
+When I ask about “keeping it always on”, you should help with:
+
+Railway settings
+
+Background tasks
+
+Avoiding blocking the event loop.
+
+🎯 Goal
+My end goal is:
+
+A working arbitrage backend (on Railway) that:
+
+Monitors prices
+
+Executes hedged trades
+
+Logs trades and PnL
+
+A simple frontend (on Replit) that:
+
+Shows live status, PnL, trades, and floats
+
+All built step-by-step with your guidance.
+
+Please align your answers and code examples with this architecture and these goals.
+
+You can now:
+
+Paste that into Replit’s AI once per session (or keep it in a file and copy-paste when needed).
+
+Then ask things like:
+
+“Generate the FastAPI structure you described.”
+
+“Help me add a Postgres model for trades.”
+
+“Help me deploy this backend to Railway step-by-step.”
+
+“Help me adjust the React frontend to show floats from /floats.”
+
+If you’d like, next I can:
+
+Give you a proposed folder structure + initial files, or
+
+Write a more complete main.py + loop.py skeleton you can paste straight into a new Repl.
