@@ -1,0 +1,42 @@
+Starting Container
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:app.arb.loop:Arbitrage loop started in PAPER mode
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ping "HTTP/1.1 200 OK"
+INFO:app.arb.exchanges.binance:Using Binance API endpoint: https://api.binance.com/api/v3
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/bookTicker?symbol=BTCUSDT "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT "HTTP/1.1 200 OK"
+INFO:app.arb.loop:[PAPER] Prices - Luno: 1478023 ZAR, Binance: $87267.74 | Gross: 900.8bps | Net: 880.8bps
+INFO:app.arb.loop:Profitable opportunity detected! Direction: luno_to_binance, Net Edge: 880.8bps
+INFO:app.arb.loop:[PAPER MODE] Simulated trade: luno_to_binance for 0.01 BTC
+INFO:app.arb.loop:[PAPER] Trade logged: 1, Simulated Profit: $6.4958
+INFO:     100.64.0.2:51177 - "GET /health HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767011234573&signature=26e3cbe0b79864bdaeb21f99ec69cd62c19ab8b672afd660c79453df110f2ace "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767011234827&signature=5b691ecce05c155b4817165dd3a43b527ff43d1450d8b3e051f4dd578efc8085 "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/bookTicker?symbol=BTCUSDT "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT "HTTP/1.1 200 OK"
+INFO:app.arb.loop:[PAPER] Prices - Luno: 1478000 ZAR, Binance: $87304.17 | Gross: 905.9bps | Net: 885.9bps
+INFO:app.arb.loop:Profitable opportunity detected! Direction: luno_to_binance, Net Edge: 885.9bps
+INFO:app.arb.loop:[PAPER MODE] Simulated trade: luno_to_binance for 0.01 BTC
+INFO:app.arb.loop:[PAPER] Trade logged: 2, Simulated Profit: $6.5663
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767011249197&signature=d529a0a5d9d1d64a2327aa0ca5483494d05afaa0a9370a6aef1b93ea0e4976f0 "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767011249449&signature=a43aa5c460b2753c62cd0e92397fecc7359c0468950671f8f203fe2da6e8a4d9 "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/bookTicker?symbol=BTCUSDT "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT "HTTP/1.1 200 OK"
+INFO:app.arb.loop:[PAPER] Prices - Luno: 1478000 ZAR, Binance: $87321.96 | Gross: 908.1bps | Net: 888.1bps
+INFO:app.arb.loop:Profitable opportunity detected! Direction: luno_to_binance, Net Edge: 888.1bps
+INFO:app.arb.loop:[PAPER MODE] Simulated trade: luno_to_binance for 0.01 BTC
+INFO:app.arb.loop:[PAPER] Trade logged: 3, Simulated Profit: $6.5986
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767011263828&signature=adeed9a65cc216b76c99c72928570a8797b7ea2a0f059801ceeff11c1ed9d914 "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767011264100&signature=b06164dcee5ac19606ab1fbbe122bafbeece0b8c966593ab0491c5b24fb53680 "HTTP/1.1 200 OK"
