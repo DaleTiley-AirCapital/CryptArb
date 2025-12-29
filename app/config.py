@@ -8,6 +8,7 @@ class Config:
     LUNO_API_SECRET: str = os.environ.get("LUNO_API_SECRET", "")
     BINANCE_API_KEY: str = os.environ.get("BINANCE_API_KEY", "")
     BINANCE_API_SECRET: str = os.environ.get("BINANCE_API_SECRET", "")
+    BINANCE_BASE_URL: str = os.environ.get("BINANCE_BASE_URL", "https://api.binance.com/api/v3")
     
     DATABASE_URL: str = os.environ.get("DATABASE_URL", "")
     

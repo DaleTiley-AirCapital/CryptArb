@@ -20,6 +20,19 @@ First, push your code to a GitHub repository:
 4. Choose your `crypto-arbitrage-bot` repository
 5. Railway will automatically detect Python and start building
 
+### IMPORTANT: Select European Region
+Binance blocks access from US IP addresses (error 451). To fix this:
+1. Go to your project **Settings**
+2. Under **Service Settings** → **Region**
+3. Select **Europe West (Amsterdam)** or another non-US region
+4. Redeploy your service
+
+If you're in the US and want to use Binance.US instead, add this environment variable:
+```
+BINANCE_BASE_URL=https://api.binance.us/api/v3
+```
+Note: You'll need a Binance.US account with separate API keys.
+
 ## Step 3: Add PostgreSQL Database
 
 1. In your Railway project, click **"+ New"**

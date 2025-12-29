@@ -1,0 +1,44 @@
+Starting Container
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767010749823&signature=1ac2ccfb8d4ae682abb2a6de9846fa5ad4d362ee69ed92432adacb46e42305fa "HTTP/1.1 451 "
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767010749840&signature=6e5f95b21442982ef93890935fa935ece160f9abefbdbce74003a0bad9156a3e "HTTP/1.1 451 "
+INFO:     100.64.0.2:45849 - "GET /health HTTP/1.1" 200 OK
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:app.arb.loop:Arbitrage loop started in PAPER mode
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/bookTicker?symbol=BTCUSDT "HTTP/1.1 451 "
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT "HTTP/1.1 451 "
+WARNING:app.arb.loop:Price fetch issue: Unable to fetch prices from one or both exchanges
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/bookTicker?symbol=BTCUSDT "HTTP/1.1 451 "
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT "HTTP/1.1 451 "
+WARNING:app.arb.loop:Price fetch issue: Unable to fetch prices from one or both exchanges
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767010760471&signature=d2276ea5d0b5244a8e6b366caa478e706831f9daab897c811ab6d6c0e14748c1 "HTTP/1.1 451 "
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767010760487&signature=1e2d186572e4d0174c88c3af5ba6508126eb8c22a75c4b0f25a64118c2ae0d15 "HTTP/1.1 451 "
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767010771115&signature=54121b9b727e751b3b1daabaad9d4530599e6b4af5fbb710ef4d46c6c67a9543 "HTTP/1.1 451 "
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767010771132&signature=fd6ffc2ad62384693d505837154aae98489907ce8159b4732fd78b5f247e2963 "HTTP/1.1 451 "
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/bookTicker?symbol=BTCUSDT "HTTP/1.1 451 "
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT "HTTP/1.1 451 "
+WARNING:app.arb.loop:Price fetch issue: Unable to fetch prices from one or both exchanges
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT "HTTP/1.1 451 "
+WARNING:app.arb.loop:Price fetch issue: Unable to fetch prices from one or both exchanges
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/bookTicker?symbol=BTCUSDT "HTTP/1.1 451 "
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767010781745&signature=076864809bbba6eba4a1149dc4e492b7c08e98d18cdd61ced5974829aa0316aa "HTTP/1.1 451 "
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767010781782&signature=d60f121907dec5e08a5a348cb6e3821372b4e46e588aa6134fb71e6d4820ec05 "HTTP/1.1 451 "
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/bookTicker?symbol=BTCUSDT "HTTP/1.1 451 "
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT "HTTP/1.1 451 "
+WARNING:app.arb.loop:Price fetch issue: Unable to fetch prices from one or both exchanges
+ERROR:app.arb.loop:Stopping bot due to 5 consecutive errors
