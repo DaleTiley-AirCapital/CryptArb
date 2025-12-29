@@ -1,0 +1,235 @@
+1️⃣ “If windows are 0.2–3s, how does a bot realistically catch them?”
+Short version:
+
+You don’t spam REST every 0.1s.
+
+You do use a smarter setup: WebSockets + moderate polling + sensible thresholds.
+
+And on Luno/SA exchanges, mispricings usually last longer than 0.2s anyway.
+
+a) You don’t need 0.1s REST spam
+If you tried to hit:
+
+Luno REST every 0.1s
+
+Binance REST every 0.1s
+
+…you’d:
+
+Smash into rate limits
+
+Waste bandwidth / CPU
+
+Risk being blocked
+
+Instead, you do something like:
+
+Binance → use WebSocket order book stream
+
+You get price updates pushed to you in real-time.
+
+No polling, no spam — just a live feed.
+
+Luno → REST polling every 300–800 ms
+
+Luno has lower liquidity, so mispricings actually tend to stick around slightly longer (often > 1s).
+
+You are not competing with HFT firms colocated in data centers; SA retail books move slower.
+
+So your effective “reaction time” is something like:
+
+New price event from Binance stream
+
+Within 0.3–0.8s you fetch Luno’s book
+
+You compute executable spread
+
+If net > threshold → fire orders
+
+That’s perfectly realistic on Railway, a VPS, or similar.
+
+b) Will Railway “crash” from this?
+No. What matters is:
+
+How expensive your loop is (CPU, memory) → if you keep things light, you’re fine.
+
+How often you hit external APIs → bounded by rate limits (you’ll design around those limits).
+
+A simple Python/FastAPI app on Railway:
+
+Can easily handle a background loop doing:
+
+2–4 REST calls/second
+
+One WebSocket client
+
+As long as you:
+
+Don’t do heavy blocking I/O
+
+Don’t spawn tons of threads
+
+If we want to be extra safe, we can:
+
+Poll Luno at 500 ms
+
+Use WebSockets for Binance
+
+Only execute when spread is big enough that even 500–800 ms of drift still leaves profit.
+
+That’s how small arbitrage desks do it without spending a fortune on infra.
+
+2️⃣ “If mismatches are rare, how did you calculate R16k/month on 100k?”
+You’re totally right to question this. Let’s unpack the assumptions and be brutally honest.
+
+Earlier, I did scenario modelling, not a guarantee:
+
+I assumed:
+
+Certain net spread per trade (e.g. 0.8–1%)
+
+A number of successful trades per month (e.g. 12–18 in the “aggressive” case)
+
+Monthly profit ≈
+capital × net_spread × number_of_trades
+
+For example:
+
+Capital: R100,000
+
+Net spread per successful trade: 0.8% → R800
+
+20 good trades in a month: 20 × 800 = R16,000
+
+Is that possible? Yes.
+Is it guaranteed with one pair and one exchange combo? No.
+It depends on:
+
+How often real, executable spreads appear (after fees + bid/ask + slippage)
+
+How many exchanges/pairs you include
+
+Market volatility in that period
+
+So let’s reframe more conservatively and realistically.
+
+🔍 More honest ranges
+Say we’re running only Luno ↔ Binance BTC to start.
+
+Let’s assume:
+
+Average executable net spread: 0.4–0.7% per trade after all costs
+
+Genuinely clean opportunities:
+
+Conservative: 2–4 per month
+
+Moderate: 5–10 per month
+
+Aggressive (with multiple pairs/exchanges): 15–25 per month
+
+Then:
+
+Conservative (BTC only, Luno/Binance):
+0.5% net × 4 trades × R100k = R2,000/month
+
+Moderate (BTC + maybe ETH later, still Luno/Binance):
+0.6% net × 8 trades × R100k = R4,800/month
+
+Aggressive (several pairs + more exchanges + higher volatility months):
+0.8% net × 20 trades × R100k = R16,000/month
+
+So that R16k/month lives in the upper bound / aggressive / multi‑engine scenario, not “this will just happen automatically on day 1”.
+
+If we’re being sober:
+
+Start planning around R2k–R5k/month on R100k in early stages.
+
+Treat anything above that as upside that you only believe once live data proves it.
+
+3️⃣ So what’s the real path to those higher numbers?
+To get closer to that R16k/month type of performance in practice, you’d likely need:
+
+More than one pair
+
+BTC/ZAR, ETH/ZAR
+
+Possibly USDT/ZAR
+
+More than one local exchange
+
+Luno, VALR, Ovex (ZAR spreads can be juicy between locals)
+
+A global engine too
+
+Binance ↔ Bybit ↔ Kraken, etc., in USDT
+
+Volatile market conditions
+
+Big moves = more desync = more spreads
+
+And a bot that:
+
+Uses WebSockets where possible
+
+Polls REST sensibly
+
+Calculates executable spreads (bid/ask, depth, slippage, fees)
+
+Trades both directions
+
+Adjusts position size based on depth
+
+Doesn’t overtrade when the edge isn’t there
+
+4️⃣ Where this leaves us, realistically
+You’ve correctly spotted that:
+
+Naïve “price vs price” arbitrage is mostly fake.
+
+The real edge lives in:
+
+Order book microstructure
+
+Fast but sane infra
+
+Rare but real moments of mispricing
+
+Profits are scenario-based, not guaranteed.
+
+So a more grounded plan:
+
+Phase 1 – Build the bot; run in paper mode or tiny size for 1–3 months.
+
+Collect stats:
+
+How many actual opportunities per day/week?
+
+Average net spread per executed trade?
+
+Slippage profile by size & time of day?
+
+Only then decide:
+
+“Is this more like a R2k/month engine or a R15k/month engine on 100k?”
+
+Until then, all numbers are planned scenarios, not promises.
+
+If you’d like, next I can:
+
+Write the actual arbitrage decision algorithm in pseudocode or Python, including:
+
+Using bid/ask
+
+Computing depth‑aware prices
+
+Applying a net spread threshold
+
+Or design the metrics logger so that from day 1 your bot records:
+
+Every potential spread
+
+Every executed trade
+
+So we can empirically answer:
+“How rare are these moments really on Luno/Binance?”

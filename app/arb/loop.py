@@ -5,6 +5,7 @@ from typing import Optional
 from app.arb.exchanges.luno import luno_client
 from app.arb.exchanges.binance import binance_client
 from app.arb.exchanges.base import PriceData
+from app.arb.fx_rates import fx_service
 from app.config import config
 from app.database import SessionLocal
 from app.models import Trade, FloatBalance, Opportunity
@@ -31,8 +32,8 @@ class ArbitrageLoop:
         binance_price = await binance_client.get_price("BTCUSDT")
         return luno_price, binance_price
     
-    def calculate_spread(self, luno_price: PriceData, binance_price: PriceData) -> dict:
-        usd_zar_rate = self.get_setting("USD_ZAR_RATE", 18.5)
+    async def calculate_spread(self, luno_price: PriceData, binance_price: PriceData) -> dict:
+        usd_zar_rate = await fx_service.get_usd_zar_rate()
         slippage_bps = self.get_setting("SLIPPAGE_BPS_BUFFER", 10)
         luno_fee = self.get_setting("LUNO_TRADING_FEE", 0.001)
         binance_fee = self.get_setting("BINANCE_TRADING_FEE", 0.001)
@@ -99,6 +100,11 @@ class ArbitrageLoop:
             "luno_zar": luno_price.last,
             "luno_usd": luno_usd,
             "binance_usd": binance_usd,
+            "usd_zar_rate": usd_zar_rate,
+            "luno_bid": luno_price.bid,
+            "luno_ask": luno_price.ask,
+            "binance_bid": binance_price.bid,
+            "binance_ask": binance_price.ask,
             "is_profitable": is_profitable
         }
     
@@ -254,7 +260,7 @@ class ArbitrageLoop:
             luno_price, binance_price = await self.get_prices()
             self.last_check = datetime.utcnow()
             
-            spread_info = self.calculate_spread(luno_price, binance_price)
+            spread_info = await self.calculate_spread(luno_price, binance_price)
             self.last_opportunity = spread_info
             
             if spread_info.get("error"):
@@ -264,8 +270,12 @@ class ArbitrageLoop:
                 self.consecutive_errors = 0
                 is_paper = config.is_paper_mode()
                 mode_str = "[PAPER]" if is_paper else "[LIVE]"
+                usd_zar = spread_info.get('usd_zar_rate', 18.5)
                 logger.info(
-                    f"{mode_str} Prices - Luno: {luno_price.last:.0f} ZAR, Binance: ${binance_price.last:.2f} | "
+                    f"{mode_str} USD/ZAR: {usd_zar:.2f} | "
+                    f"Luno: {luno_price.last:.0f} ZAR (bid:{luno_price.bid:.0f}/ask:{luno_price.ask:.0f}) | "
+                    f"Binance: ${binance_price.last:.2f} (bid:{binance_price.bid:.2f}/ask:{binance_price.ask:.2f}) | "
+                    f"Luno→USD: ${spread_info['luno_usd']:.2f} | "
                     f"Gross: {spread_info['gross_edge_bps']:.1f}bps | Net: {spread_info['net_edge_bps']:.1f}bps"
                 )
                 
