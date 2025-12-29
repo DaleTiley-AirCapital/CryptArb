@@ -30,6 +30,20 @@ export async function fetchConfig() {
   return res.json();
 }
 
+export async function updateConfig(config) {
+  const res = await fetch(`${API_BASE}/config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config)
+  });
+  return res.json();
+}
+
+export async function fetchOpportunities(limit = 50) {
+  const res = await fetch(`${API_BASE}/reports/opportunities?limit=${limit}`);
+  return res.json();
+}
+
 export async function startBot() {
   const res = await fetch(`${API_BASE}/start`, { method: 'POST' });
   return res.json();

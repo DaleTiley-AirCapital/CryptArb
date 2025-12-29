@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchStatus, fetchSummary, fetchTrades, fetchFloats, startBot, stopBot } from './api'
+import { fetchStatus, fetchSummary, fetchTrades, fetchFloats, fetchConfig, updateConfig, fetchOpportunities, startBot, stopBot } from './api'
 
 function StatusCard({ title, value, subtitle, color = 'green' }) {
   const colorClasses = {
@@ -7,6 +7,7 @@ function StatusCard({ title, value, subtitle, color = 'green' }) {
     red: 'bg-red-500/20 border-red-500/50 text-red-400',
     blue: 'bg-blue-500/20 border-blue-500/50 text-blue-400',
     yellow: 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400',
+    purple: 'bg-purple-500/20 border-purple-500/50 text-purple-400',
   }
 
   return (
@@ -56,14 +57,69 @@ function TradesTable({ trades }) {
               <td className="p-2 text-right font-mono">{trade.btc_amount?.toFixed(6)}</td>
               <td className="p-2 text-right font-mono">{trade.spread_percent?.toFixed(2)}%</td>
               <td className={`p-2 text-right font-mono ${trade.profit_usd >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                ${trade.profit_usd?.toFixed(2)}
+                ${trade.profit_usd?.toFixed(4)}
               </td>
               <td className="p-2">
                 <span className={`px-2 py-1 rounded text-xs ${
-                  trade.status === 'completed' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
+                  trade.status === 'completed' ? 'bg-green-500/20 text-green-400' : 
+                  trade.status === 'paper' ? 'bg-yellow-500/20 text-yellow-400' :
+                  'bg-slate-500/20 text-slate-400'
                 }`}>
                   {trade.status}
                 </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function OpportunitiesTable({ opportunities }) {
+  if (!opportunities || opportunities.length === 0) {
+    return (
+      <div className="text-center py-4 text-slate-400">
+        No opportunities logged yet.
+      </div>
+    )
+  }
+
+  return (
+    <div className="overflow-x-auto max-h-64">
+      <table className="w-full text-sm">
+        <thead className="sticky top-0 bg-slate-900">
+          <tr className="border-b border-slate-700">
+            <th className="text-left p-2">Time</th>
+            <th className="text-left p-2">Direction</th>
+            <th className="text-right p-2">Gross (bps)</th>
+            <th className="text-right p-2">Net (bps)</th>
+            <th className="text-left p-2">Executed</th>
+          </tr>
+        </thead>
+        <tbody>
+          {opportunities.slice(0, 20).map((opp) => (
+            <tr key={opp.id} className="border-b border-slate-800 hover:bg-slate-800/50">
+              <td className="p-2 text-xs">{new Date(opp.timestamp).toLocaleTimeString()}</td>
+              <td className="p-2">
+                <span className={`px-1 py-0.5 rounded text-xs ${
+                  opp.direction === 'luno_to_binance' 
+                    ? 'bg-blue-500/20 text-blue-400' 
+                    : 'bg-purple-500/20 text-purple-400'
+                }`}>
+                  {opp.direction === 'luno_to_binance' ? 'L→B' : 'B→L'}
+                </span>
+              </td>
+              <td className="p-2 text-right font-mono text-xs">{opp.gross_edge_bps?.toFixed(1)}</td>
+              <td className={`p-2 text-right font-mono text-xs ${opp.net_edge_bps >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {opp.net_edge_bps?.toFixed(1)}
+              </td>
+              <td className="p-2">
+                {opp.was_executed ? (
+                  <span className="text-green-400 text-xs">Yes</span>
+                ) : (
+                  <span className="text-slate-500 text-xs">No</span>
+                )}
               </td>
             </tr>
           ))}
@@ -105,26 +161,42 @@ function FloatsDisplay({ floats }) {
   )
 }
 
+function formatUptime(seconds) {
+  if (!seconds) return 'N/A'
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = Math.floor(seconds % 60)
+  if (hours > 0) return `${hours}h ${minutes}m`
+  if (minutes > 0) return `${minutes}m ${secs}s`
+  return `${secs}s`
+}
+
 function App() {
   const [status, setStatus] = useState(null)
   const [summary, setSummary] = useState(null)
   const [trades, setTrades] = useState([])
   const [floats, setFloats] = useState(null)
+  const [config, setConfig] = useState(null)
+  const [opportunities, setOpportunities] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   const loadData = async () => {
     try {
-      const [statusData, summaryData, tradesData, floatsData] = await Promise.all([
+      const [statusData, summaryData, tradesData, floatsData, configData, oppsData] = await Promise.all([
         fetchStatus(),
         fetchSummary(),
         fetchTrades(20),
-        fetchFloats()
+        fetchFloats(),
+        fetchConfig(),
+        fetchOpportunities(50)
       ])
       setStatus(statusData)
       setSummary(summaryData)
       setTrades(tradesData.trades || [])
       setFloats(floatsData.floats)
+      setConfig(configData)
+      setOpportunities(oppsData.opportunities || [])
       setError(null)
     } catch (err) {
       setError('Failed to connect to backend. Make sure the API is running.')
@@ -153,6 +225,16 @@ function App() {
     }
   }
 
+  const handleModeToggle = async () => {
+    try {
+      const newMode = config?.mode === 'paper' ? 'live' : 'paper'
+      await updateConfig({ mode: newMode })
+      await loadData()
+    } catch (err) {
+      console.error('Error toggling mode:', err)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -162,10 +244,12 @@ function App() {
   }
 
   const botRunning = status?.bot?.running
+  const botMode = status?.bot?.mode || config?.mode || 'paper'
+  const uptime = status?.bot?.uptime_seconds
   const totalPnL = summary?.all_time?.total_profit_usd || 0
   const totalTrades = summary?.all_time?.total_trades || 0
   const todayPnL = summary?.today?.profit_usd || 0
-  const lastSpread = status?.bot?.last_opportunity?.spread_percent
+  const lastOpportunity = status?.bot?.last_opportunity
 
   return (
     <div className="min-h-screen p-6">
@@ -176,16 +260,28 @@ function App() {
               <h1 className="text-3xl font-bold">Crypto Arbitrage Dashboard</h1>
               <p className="text-slate-400 mt-1">BTC/ZAR - Luno ↔ Binance</p>
             </div>
-            <button
-              onClick={handleStartStop}
-              className={`px-6 py-3 rounded-lg font-semibold transition ${
-                botRunning
-                  ? 'bg-red-600 hover:bg-red-700'
-                  : 'bg-green-600 hover:bg-green-700'
-              }`}
-            >
-              {botRunning ? 'Stop Bot' : 'Start Bot'}
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={handleModeToggle}
+                className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
+                  botMode === 'paper'
+                    ? 'bg-yellow-600 hover:bg-yellow-700'
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
+              >
+                {botMode === 'paper' ? 'Paper Mode' : 'Live Mode'}
+              </button>
+              <button
+                onClick={handleStartStop}
+                className={`px-6 py-3 rounded-lg font-semibold transition ${
+                  botRunning
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
+              >
+                {botRunning ? 'Stop Bot' : 'Start Bot'}
+              </button>
+            </div>
           </div>
         </header>
 
@@ -195,12 +291,18 @@ function App() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <StatusCard
             title="Bot Status"
             value={botRunning ? 'Running' : 'Stopped'}
-            subtitle={status?.bot?.last_check ? `Last check: ${new Date(status.bot.last_check).toLocaleTimeString()}` : null}
+            subtitle={uptime ? `Uptime: ${formatUptime(uptime)}` : (status?.bot?.last_check ? `Last: ${new Date(status.bot.last_check).toLocaleTimeString()}` : null)}
             color={botRunning ? 'green' : 'red'}
+          />
+          <StatusCard
+            title="Mode"
+            value={botMode === 'paper' ? 'Paper' : 'Live'}
+            subtitle={botMode === 'paper' ? 'Simulated trades' : 'Real trades'}
+            color={botMode === 'paper' ? 'yellow' : 'purple'}
           />
           <StatusCard
             title="Total PnL"
@@ -215,9 +317,9 @@ function App() {
             color={todayPnL >= 0 ? 'green' : 'red'}
           />
           <StatusCard
-            title="Current Spread"
-            value={lastSpread ? `${lastSpread.toFixed(2)}%` : 'N/A'}
-            subtitle={status?.bot?.last_opportunity?.direction?.replace('_', ' → ')}
+            title="Net Edge"
+            value={lastOpportunity?.net_edge_bps ? `${lastOpportunity.net_edge_bps.toFixed(1)} bps` : 'N/A'}
+            subtitle={lastOpportunity?.direction?.replace('_to_', ' → ')}
             color="blue"
           />
         </div>
@@ -233,42 +335,101 @@ function App() {
           </div>
         </div>
 
-        <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
-          <h2 className="text-xl font-semibold mb-4">Opportunity Monitor</h2>
-          {status?.bot?.last_opportunity ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <div className="text-slate-400 text-sm">Direction</div>
-                <div className="font-semibold">
-                  {status.bot.last_opportunity.direction === 'luno_to_binance' 
-                    ? 'Buy Luno → Sell Binance' 
-                    : 'Buy Binance → Sell Luno'}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
+            <h2 className="text-xl font-semibold mb-4">Live Spread Monitor</h2>
+            {lastOpportunity && !lastOpportunity.error ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-slate-400 text-sm">Luno BTC/ZAR</div>
+                    <div className="font-mono text-lg">R {lastOpportunity.luno_zar?.toLocaleString() || 'N/A'}</div>
+                    <div className="text-slate-500 text-xs">≈ ${lastOpportunity.luno_usd?.toFixed(2) || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <div className="text-slate-400 text-sm">Binance BTC/USDT</div>
+                    <div className="font-mono text-lg">${lastOpportunity.binance_usd?.toLocaleString() || 'N/A'}</div>
+                  </div>
+                </div>
+                <div className="border-t border-slate-700 pt-4">
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <div className="text-slate-400 text-xs">Gross Edge</div>
+                      <div className="font-semibold">{lastOpportunity.gross_edge_bps?.toFixed(1) || '0'} bps</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-400 text-xs">Net Edge</div>
+                      <div className={`font-semibold ${lastOpportunity.net_edge_bps >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {lastOpportunity.net_edge_bps?.toFixed(1) || '0'} bps
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-slate-400 text-xs">Profitable?</div>
+                      <div className={`font-semibold ${lastOpportunity.is_profitable ? 'text-green-400' : 'text-yellow-400'}`}>
+                        {lastOpportunity.is_profitable ? 'Yes' : 'No'}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
+            ) : (
+              <div className="text-slate-400">
+                {lastOpportunity?.error || 'Waiting for price data...'}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
+            <h2 className="text-xl font-semibold mb-4">Recent Opportunities</h2>
+            <OpportunitiesTable opportunities={opportunities} />
+          </div>
+        </div>
+
+        <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700 mb-8">
+          <h2 className="text-xl font-semibold mb-4">Configuration</h2>
+          {config && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
-                <div className="text-slate-400 text-sm">Gross Spread</div>
-                <div className="font-semibold">{status.bot.last_opportunity.spread_percent?.toFixed(3)}%</div>
+                <span className="text-slate-400">Min Net Edge:</span>
+                <span className="ml-2 font-mono">{config.min_net_edge_bps} bps</span>
               </div>
               <div>
-                <div className="text-slate-400 text-sm">Net Spread (after fees)</div>
-                <div className={`font-semibold ${status.bot.last_opportunity.net_spread >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {status.bot.last_opportunity.net_spread?.toFixed(3)}%
-                </div>
+                <span className="text-slate-400">Max Trade BTC:</span>
+                <span className="ml-2 font-mono">{config.max_trade_size_btc}</span>
               </div>
               <div>
-                <div className="text-slate-400 text-sm">Profitable?</div>
-                <div className={`font-semibold ${status.bot.last_opportunity.is_profitable ? 'text-green-400' : 'text-yellow-400'}`}>
-                  {status.bot.last_opportunity.is_profitable ? 'Yes' : 'Below threshold'}
-                </div>
+                <span className="text-slate-400">Max Trade ZAR:</span>
+                <span className="ml-2 font-mono">R {config.max_trade_zar?.toLocaleString()}</span>
+              </div>
+              <div>
+                <span className="text-slate-400">Slippage Buffer:</span>
+                <span className="ml-2 font-mono">{config.slippage_bps_buffer} bps</span>
+              </div>
+              <div>
+                <span className="text-slate-400">Poll Interval:</span>
+                <span className="ml-2 font-mono">{config.loop_interval_seconds}s</span>
+              </div>
+              <div>
+                <span className="text-slate-400">Luno Fee:</span>
+                <span className="ml-2 font-mono">{(config.luno_trading_fee * 100).toFixed(2)}%</span>
+              </div>
+              <div>
+                <span className="text-slate-400">Binance Fee:</span>
+                <span className="ml-2 font-mono">{(config.binance_trading_fee * 100).toFixed(2)}%</span>
+              </div>
+              <div>
+                <span className="text-slate-400">USD/ZAR Rate:</span>
+                <span className="ml-2 font-mono">{config.usd_zar_rate}</span>
               </div>
             </div>
-          ) : (
-            <div className="text-slate-400">Waiting for price data...</div>
           )}
         </div>
 
         <footer className="mt-8 text-center text-slate-500 text-sm">
           <p>Refresh interval: 10 seconds | Data from Luno and Binance APIs</p>
+          <p className="mt-1">
+            API Status: {config?.luno_api_configured ? '✓ Luno' : '✗ Luno'} | {config?.binance_api_configured ? '✓ Binance' : '✗ Binance'}
+          </p>
         </footer>
       </div>
     </div>

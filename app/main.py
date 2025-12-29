@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import init_db
 from app.arb.loop import arb_loop
-from app.routes import status, trades, pnl, floats, config
+from app.routes import status, trades, pnl, floats, config, opportunities
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,6 +33,7 @@ app.include_router(trades.router, tags=["Trades"])
 app.include_router(pnl.router, tags=["PnL"])
 app.include_router(floats.router, tags=["Floats"])
 app.include_router(config.router, tags=["Config"])
+app.include_router(opportunities.router, tags=["Opportunities"])
 
 @app.get("/")
 async def root():
@@ -46,6 +47,7 @@ async def root():
             "GET /reports/trades",
             "GET /reports/pnl",
             "GET /reports/summary",
+            "GET /reports/opportunities",
             "GET /floats",
             "GET /config",
             "POST /config"

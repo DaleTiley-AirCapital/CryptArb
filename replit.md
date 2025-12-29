@@ -8,30 +8,33 @@ A market-neutral crypto arbitrage bot that monitors BTC price spreads between Lu
 ### Backend (FastAPI - Python)
 Located in `/app/`:
 - `main.py` - FastAPI entrypoint with CORS and lifecycle management
-- `config.py` - Configuration from environment variables
+- `config.py` - Configuration from environment variables with runtime overrides
 - `database.py` - PostgreSQL/SQLite connection using SQLAlchemy (auto-fallback to SQLite in dev)
-- `arb/loop.py` - Background arbitrage monitoring loop
+- `arb/loop.py` - Background arbitrage monitoring loop with paper/live mode support
 - `arb/exchanges/` - Exchange API clients (Luno, Binance)
-- `models/` - Database models (Trade, FloatBalance, PnLRecord)
+- `models/` - Database models (Trade, FloatBalance, PnLRecord, Opportunity, ConfigHistory)
 - `routes/` - REST API endpoints
 
 ### Frontend (React + Vite)
 Located in `/frontend/`:
 - React dashboard with Tailwind CSS
-- Displays bot status, PnL, trades, and exchange balances
+- Displays bot status, mode (paper/live), PnL, trades, exchange balances, and opportunities
+- Live spread monitor with real-time prices
+- Mode toggle and Start/Stop controls
 - Auto-refreshes every 10 seconds
 - Proxies API requests to backend in development
 
 ## API Endpoints
-- `GET /status` - Bot health and current opportunity
+- `GET /status` - Bot health, mode, uptime, and current opportunity
 - `GET /reports/trades` - Recent trade history
 - `GET /reports/pnl` - Profit/loss summary
 - `GET /reports/summary` - Overall statistics
+- `GET /reports/opportunities` - Logged spread opportunities
 - `GET /floats` - Exchange balance floats
 - `GET /config` - Current configuration
 - `POST /start` - Start the arbitrage bot
 - `POST /stop` - Stop the arbitrage bot
-- `POST /config` - Update configuration
+- `POST /config` - Update configuration (mode, thresholds, etc.)
 
 ## Environment Variables
 
@@ -45,11 +48,16 @@ Located in `/frontend/`:
 - `BINANCE_API_SECRET` - Binance API secret
 
 ### Trading Configuration (all have defaults)
+- `MODE` - Trading mode: "paper" or "live" (default: paper)
 - `SPREAD_THRESHOLD` - Minimum spread % to execute (default: 0.5)
+- `MIN_NET_EDGE_BPS` - Minimum net edge in basis points (default: 40)
 - `MAX_TRADE_SIZE_BTC` - Maximum BTC per trade (default: 0.01)
 - `MIN_TRADE_SIZE_BTC` - Minimum BTC per trade (default: 0.0001)
+- `MAX_TRADE_ZAR` - Maximum ZAR per trade (default: 5000)
 - `LOOP_INTERVAL_SECONDS` - Price check interval (default: 10)
+- `SLIPPAGE_BPS_BUFFER` - Slippage buffer in bps (default: 10)
 - `USD_ZAR_RATE` - USD to ZAR exchange rate (default: 18.5)
+- `ERROR_STOP_COUNT` - Stop after N consecutive errors (default: 5)
 
 See `.env.example` for full configuration template.
 
@@ -57,6 +65,18 @@ See `.env.example` for full configuration template.
 - Backend runs on port 8000
 - Frontend runs on port 5000
 - Frontend proxies API requests to backend automatically
+
+## Trading Modes
+
+### Paper Mode (Default)
+- Logs opportunities and simulated trades
+- No real orders placed on exchanges
+- Safe for testing and development
+
+### Live Mode
+- Places real orders on Luno and Binance
+- Requires valid API keys with trading permissions
+- Only switch to live mode when ready for real trading
 
 ## Deployment
 
@@ -66,6 +86,7 @@ See `.env.example` for full configuration template.
 3. Set environment variables in Railway dashboard:
    - `DATABASE_URL` (use Railway's Postgres add-on)
    - Exchange API keys
+   - `MODE=paper` (or `live` when ready)
 4. Deploy with start command:
 ```
 uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -81,8 +102,17 @@ VITE_API_BASE=https://your-backend-url.railway.app
 - **Market-neutral**: No directional BTC exposure
 - **Bidirectional**: Supports both Luno→Binance and Binance→Luno spreads
 - **Hedged trades**: Simultaneous buy/sell across exchanges
-- **Fee-aware**: Only executes when spread > fees + threshold
+- **Fee-aware**: Only executes when spread > fees + slippage + threshold
+- **Risk controls**: Max trade size, min remaining balance, error stop count
+
+## Database Models
+- `trades` - Executed trades with prices, fees, and profit
+- `opportunities` - Logged spread opportunities (executed or skipped)
+- `float_balance` - Current exchange balances
+- `pnl_records` - Daily PnL summaries
+- `config_history` - Configuration change history
 
 ## Recent Changes
+- December 29, 2025: Added paper/live mode, opportunities logging, config history, enhanced dashboard
 - December 11, 2025: Initial project setup with full backend and frontend
 - December 11, 2025: Added SQLite fallback for development, improved error handling

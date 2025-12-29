@@ -1,0 +1,289 @@
+PROJECT BRIEF (READ FULLY BEFORE CODING)
+
+I need you to build a crypto arbitrage system for Binance + Luno with:
+
+A Frontend dashboard hosted on Replit
+
+A Backend API + always‑on bot deployed on Railway
+
+This is a market‑neutral, hedged arbitrage bot (NOT directional trading).
+The bot profits only from executable order‑book spreads (Binance bid/ask vs Luno bid/ask), after fees + slippage buffers.
+
+1) Key Strategy Requirements (must follow)
+Use REAL executable prices:
+
+Sell uses best bid (or limit sell near bid)
+
+Buy uses best ask (or limit buy near ask)
+
+Do NOT use mid price or last price.
+
+Bot must support both directions:
+
+Direction A: Sell on Binance, Buy on Luno
+
+Direction B: Sell on Luno, Buy on Binance
+
+Maintain two‑float hedged model:
+
+One side holds BTC/USDT inventory, other side holds ZAR (and it flips as trades happen).
+
+Bot should never take intentional long/short exposure; each trade is a paired hedge.
+
+Bot must compute net executable spread:
+
+Consider: trading fees, expected slippage, and a minimum profit threshold.
+
+Only execute if net edge >= configured threshold.
+
+Start with BTC only (no multi-coin splitting initially).
+
+Safety:
+
+No withdrawals enabled on either exchange API keys.
+
+Use environment variables for secrets/config. Never hardcode keys.
+
+2) Architecture Overview
+A) Backend (Railway) – Python + FastAPI
+Runs REST API for the dashboard
+
+Runs the bot as an always-on background service
+
+Uses Postgres (Railway Postgres) for persistence
+
+Uses WebSocket for Binance market data if possible; Luno can be polled (REST) at a sensible interval (e.g. 500ms–1500ms), respecting rate limits.
+
+B) Frontend (Replit) – React Dashboard
+Calls the Railway backend via HTTPS
+
+Shows status, balances, spreads, executed trades, PnL, and configuration
+
+3) Core Features to Build (MVP)
+Backend API Endpoints (FastAPI)
+GET /status
+
+bot running state, uptime, last loop time, last error (if any)
+
+GET /config
+
+current bot config (thresholds, polling interval, max trade size, etc.)
+
+POST /config
+
+update config (server-side validation)
+
+POST /bot/start
+
+POST /bot/stop
+
+GET /reports/pnl
+
+daily + monthly totals, cumulative PnL
+
+GET /reports/trades?limit=200
+
+list of executed trades with timestamps, direction, sizes, prices, fees, net profit
+
+GET /reports/opportunities?limit=200
+
+log of “detected opportunities” (even if not executed) including net spread estimate
+
+GET /balances
+
+current balances/float on Binance and Luno (ZAR, BTC, USDT if applicable)
+
+Bot Behavior (Background Worker)
+The bot runs a loop:
+
+Get Binance book (prefer WebSocket; fallback REST)
+
+Get Luno book (REST)
+
+Compute executable prices at top-of-book (and optionally depth-aware sizing):
+
+sell_price = best_bid - slippage_buffer
+
+buy_price = best_ask + slippage_buffer
+
+Compute net spread:
+
+gross = sell_price - buy_price
+
+net = gross - (fees_binance + fees_luno) - safety_profit_buffer
+
+If net >= threshold AND float available on both sides:
+
+Place paired orders (hedged):
+
+Prefer LIMIT orders near bid/ask with IOC/FOK behavior where available
+
+If using MARKET orders, only if spread is wide enough to absorb slippage
+
+Confirm fills, compute actual fees, compute realized net profit
+
+Persist trade record to Postgres
+
+Enforce risk limits:
+
+max trade size (ZAR terms)
+
+minimum remaining balance per exchange
+
+stop trading if error streak / partial fill risk
+
+Log opportunities continuously for analytics
+
+IMPORTANT: The bot must support paper mode and live mode:
+
+Paper mode logs opportunities and “simulated trades” but does not place orders.
+
+Live mode places real orders.
+
+4) Configuration Variables (env + editable via dashboard)
+Use environment variables on Railway (and Replit for dev) for secrets:
+
+BINANCE_API_KEY
+
+BINANCE_API_SECRET
+
+LUNO_API_KEY
+
+LUNO_API_SECRET
+
+Operational config (default from env, editable via POST /config):
+
+MODE = paper or live
+
+SYMBOL = BTC (MVP)
+
+POLL_INTERVAL_MS (e.g. 750)
+
+MIN_NET_EDGE_BPS (basis points, e.g. 40 bps = 0.40%)
+
+MAX_TRADE_ZAR (e.g. 500 for testing, then 5k/10k/…)
+
+MIN_REMAINING_ZAR_LUNO
+
+MIN_REMAINING_BTC_BINANCE
+
+SLIPPAGE_BPS_BUFFER (e.g. 10–20 bps)
+
+FEE_BPS_BINANCE and FEE_BPS_LUNO (configurable)
+
+ERROR_STOP_COUNT (e.g. stop bot after N consecutive failures)
+
+5) Database (Postgres on Railway)
+Create tables/models:
+
+trades
+
+id, timestamp, direction, binance_price, luno_price, size_zar, size_btc, fees_total, net_profit_zar, status, raw_response_json
+
+opportunities
+
+timestamp, direction, sell_exchange, buy_exchange, gross_edge_bps, net_edge_bps, size_possible_estimate, reason_skipped
+
+config_history
+
+timestamp, config_json, updated_by
+
+optional: bot_events (start/stop/error logs)
+
+Use SQLAlchemy + Alembic (preferred) or a simple ORM pattern that is production-safe.
+
+6) Frontend Dashboard (React on Replit)
+Pages/sections:
+
+Overview
+
+Bot status, mode (paper/live), uptime
+
+Current recommended action (if stopped)
+
+Live Spreads
+
+Current bid/ask from Binance and Luno
+
+Computed net edge both directions
+
+Trades
+
+table of recent trades, filters by date/direction
+
+PnL
+
+daily and monthly totals (simple charts optional)
+
+Balances
+
+Binance balances, Luno balances
+
+Config
+
+set thresholds, max trade size, poll interval
+
+Start/Stop buttons
+
+Frontend must read backend base URL from a config constant:
+
+VITE_API_BASE_URL (Replit env var) pointing to Railway deployment.
+
+Enable CORS on backend for the Replit frontend origin.
+
+7) Deployment Instructions (Railway)
+I want you to generate:
+
+A repo-ready structure
+
+requirements.txt
+
+Procfile or documented start command:
+
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+How to set Railway env vars
+
+How to attach Railway Postgres and set DATABASE_URL
+
+A healthcheck endpoint /status
+
+8) Compliance/Safety Notes (must implement)
+Do not implement any withdrawal endpoints.
+
+Strongly recommend API keys have only:
+
+Read + Spot Trading
+
+No withdrawals
+
+Provide a “kill switch” in config: bot stops instantly and logs reason.
+
+9) Deliverables Required From You (Replit AI)
+Create the full folder structure and code for:
+
+FastAPI backend
+
+background bot worker
+
+Binance + Luno connectors (market data + order placement stubs)
+
+Postgres models + migrations
+
+REST endpoints listed above
+
+Create the React frontend dashboard that calls the backend endpoints.
+
+Provide a step-by-step guide to:
+
+run locally in Replit
+
+push to GitHub
+
+deploy backend to Railway
+
+configure env vars on Railway
+
+set frontend env var VITE_API_BASE_URL
+
+Start with a working MVP in paper mode that logs opportunities and displays them in the dashboard. Then add live mode execution.
