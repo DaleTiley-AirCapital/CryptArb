@@ -233,7 +233,7 @@ function App() {
       } else {
         await startBot()
       }
-      await loadData()
+      await loadFastData()
     } catch (err) {
       console.error('Error toggling bot:', err)
     }
@@ -243,7 +243,8 @@ function App() {
     try {
       const newMode = config?.mode === 'paper' ? 'live' : 'paper'
       await updateConfig({ mode: newMode })
-      await loadData()
+      await loadFastData()
+      await loadSlowData()
     } catch (err) {
       console.error('Error toggling mode:', err)
     }

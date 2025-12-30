@@ -1,0 +1,137 @@
+Starting Container
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:app.arb.price_service:Price service starting...
+INFO:app.arb.price_service:Price service started - WebSocket + REST polling active
+INFO:     Application startup complete.
+INFO:app.arb.price_service:Connecting to Binance WebSocket: wss://stream.binance.com:9443/ws/btcusdt@bookTicker
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.2:35919 - "GET /health HTTP/1.1" 200 OK
+INFO:app.arb.price_service:Binance WebSocket connected - receiving real-time prices
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:app.arb.fast_loop:Fast arbitrage loop started in PAPER mode (check interval: 0.5s)
+INFO:httpx:HTTP Request: GET https://api.exchangerate-api.com/v4/latest/USD "HTTP/1.1 200 OK"
+INFO:app.arb.fx_rates:Live USD/ZAR rate fetched: 16.6800
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:55482 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:55492 - "GET /status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:55482 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55516 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55516 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55482 - "GET /floats HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55516 - "GET /config HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:55504 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55528 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55498 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55528 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55528 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55498 - "GET /floats HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:55516 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55504 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55504 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55504 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55504 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55504 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55504 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55504 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:55504 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55504 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:52912 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:52918 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:52918 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55504 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:52894 - "GET /floats HTTP/1.1" 200 OK
+INFO:     100.64.0.3:52904 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:52904 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:52904 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:52904 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:52904 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:25460 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:52904 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:55492 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:25468 - "GET /floats HTTP/1.1" 200 OK
+INFO:     100.64.0.3:25454 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:25454 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:25454 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:25454 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:31266 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:31272 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:25454 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:31236 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:31238 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:31270 - "GET /floats HTTP/1.1" 200 OK
+INFO:app.arb.exchanges.binance:Using Binance API endpoint: https://api.binance.com/api/v3
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767103932952&signature=73faf02b920b3f540ef42585e55c75cbe1be45e3f89ef5b094e81aa0c679fb1d "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ping "HTTP/1.1 200 OK"
+INFO:app.arb.exchanges.binance:Using Binance API endpoint: https://api.binance.com/api/v3
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767103932941&signature=db0ce669eb3beac66c3e7031eae1eb725f7b6ad28fbef1528bfcb7feabdcff67 "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/ping "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:app.arb.fast_loop:[PAPER] USD/ZAR: 16.68 | Luno: R1477119 | Binance: $88027.29 | Net: 20.0bps | Check: 0ms
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/balance "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767103963314&signature=9bf903e336744c87e0a7cc843dfdba1b07af4eb288faad9d29ee0f36ac7a4627 "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.binance.com/api/v3/account?timestamp=1767103963306&signature=5e0e011dfae6bebc50d299535f4a7d33f3a84cea9d8b93690b9f0e23267735fb "HTTP/1.1 200 OK"
