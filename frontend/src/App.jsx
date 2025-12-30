@@ -1,6 +1,228 @@
 import { useState, useEffect } from 'react'
 import { fetchStatus, fetchSummary, fetchTrades, fetchFloats, fetchConfig, updateConfig, fetchOpportunities, startBot, stopBot } from './api'
 
+function Toast({ message, type, onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 4000)
+    return () => clearTimeout(timer)
+  }, [onClose])
+
+  const bgColor = type === 'success' ? 'bg-green-600' : 'bg-red-600'
+
+  return (
+    <div className={`${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3`}>
+      <span>{type === 'success' ? '✓' : '✕'}</span>
+      <span>{message}</span>
+      <button onClick={onClose} className="ml-2 hover:opacity-75">×</button>
+    </div>
+  )
+}
+
+function ToastContainer({ toasts, removeToast }) {
+  return (
+    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
+      {toasts.map((toast) => (
+        <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => removeToast(toast.id)} />
+      ))}
+    </div>
+  )
+}
+
+function SettingsModal({ config, onClose, onSave, showToast }) {
+  const [formData, setFormData] = useState({
+    mode: config?.mode || 'paper',
+    min_net_edge_bps: config?.min_net_edge_bps ?? 40,
+    max_trade_size_btc: config?.max_trade_size_btc ?? 0.01,
+    min_trade_size_btc: config?.min_trade_size_btc ?? 0.0001,
+    max_trade_zar: config?.max_trade_zar ?? 5000,
+    loop_interval_seconds: config?.loop_interval_seconds ?? 0.5,
+    slippage_bps_buffer: config?.slippage_bps_buffer ?? 10,
+    min_remaining_zar_luno: config?.min_remaining_zar_luno ?? 1000,
+    min_remaining_btc_binance: config?.min_remaining_btc_binance ?? 0.001,
+  })
+  const [saving, setSaving] = useState(false)
+
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await updateConfig({
+        mode: formData.mode,
+        min_net_edge_bps: parseFloat(formData.min_net_edge_bps),
+        max_trade_size_btc: parseFloat(formData.max_trade_size_btc),
+        min_trade_size_btc: parseFloat(formData.min_trade_size_btc),
+        max_trade_zar: parseFloat(formData.max_trade_zar),
+        loop_interval_seconds: parseFloat(formData.loop_interval_seconds),
+        slippage_bps_buffer: parseFloat(formData.slippage_bps_buffer),
+        min_remaining_zar_luno: parseFloat(formData.min_remaining_zar_luno),
+        min_remaining_btc_binance: parseFloat(formData.min_remaining_btc_binance),
+      })
+      showToast('Configuration saved successfully', 'success')
+      onSave()
+      onClose()
+    } catch (err) {
+      showToast('Failed to save configuration', 'error')
+      console.error('Error saving config:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inputClass = "w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+  const labelClass = "block text-slate-400 text-sm mb-1"
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-40" onClick={onClose}>
+      <div className="bg-slate-800 rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto border border-slate-700" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold">Bot Settings</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-2xl">&times;</button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className={labelClass}>Mode</label>
+            <select
+              value={formData.mode}
+              onChange={(e) => handleChange('mode', e.target.value)}
+              className={inputClass}
+            >
+              <option value="paper">Paper (Simulated)</option>
+              <option value="live">Live (Real Trades)</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Min Net Edge (bps)</label>
+              <input
+                type="number"
+                step="1"
+                value={formData.min_net_edge_bps}
+                onChange={(e) => handleChange('min_net_edge_bps', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Slippage Buffer (bps)</label>
+              <input
+                type="number"
+                step="1"
+                value={formData.slippage_bps_buffer}
+                onChange={(e) => handleChange('slippage_bps_buffer', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Max Trade Size (BTC)</label>
+              <input
+                type="number"
+                step="0.0001"
+                value={formData.max_trade_size_btc}
+                onChange={(e) => handleChange('max_trade_size_btc', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Min Trade Size (BTC)</label>
+              <input
+                type="number"
+                step="0.0001"
+                value={formData.min_trade_size_btc}
+                onChange={(e) => handleChange('min_trade_size_btc', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Max Trade (ZAR)</label>
+              <input
+                type="number"
+                step="100"
+                value={formData.max_trade_zar}
+                onChange={(e) => handleChange('max_trade_zar', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Loop Interval (seconds)</label>
+              <input
+                type="number"
+                step="0.1"
+                value={formData.loop_interval_seconds}
+                onChange={(e) => handleChange('loop_interval_seconds', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Min Remaining ZAR (Luno)</label>
+              <input
+                type="number"
+                step="100"
+                value={formData.min_remaining_zar_luno}
+                onChange={(e) => handleChange('min_remaining_zar_luno', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Min Remaining BTC (Binance)</label>
+              <input
+                type="number"
+                step="0.0001"
+                value={formData.min_remaining_btc_binance}
+                onChange={(e) => handleChange('min_remaining_btc_binance', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6 pt-4 border-t border-slate-700">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed rounded-lg transition flex items-center justify-center gap-2"
+          >
+            {saving ? (
+              <>
+                <span className="animate-spin">⟳</span>
+                Saving...
+              </>
+            ) : (
+              'Save Settings'
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function GearIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
 function StatusCard({ title, value, subtitle, color = 'green' }) {
   const colorClasses = {
     green: 'bg-green-500/20 border-green-500/50 text-green-400',
@@ -180,6 +402,18 @@ function App() {
   const [opportunities, setOpportunities] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [showSettings, setShowSettings] = useState(false)
+  const [toasts, setToasts] = useState([])
+  const [actionLoading, setActionLoading] = useState({ start: false, mode: false })
+
+  const showToast = (message, type = 'success') => {
+    const id = Date.now()
+    setToasts(prev => [...prev, { id, message, type }])
+  }
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }
 
   const loadFastData = async () => {
     try {
@@ -227,27 +461,43 @@ function App() {
   }, [])
 
   const handleStartStop = async () => {
+    setActionLoading(prev => ({ ...prev, start: true }))
     try {
       if (status?.bot?.running) {
         await stopBot()
+        showToast('Bot stopped', 'success')
       } else {
         await startBot()
+        showToast('Bot started', 'success')
       }
       await loadFastData()
     } catch (err) {
+      showToast('Failed to toggle bot', 'error')
       console.error('Error toggling bot:', err)
+    } finally {
+      setActionLoading(prev => ({ ...prev, start: false }))
     }
   }
 
   const handleModeToggle = async () => {
+    setActionLoading(prev => ({ ...prev, mode: true }))
     try {
       const newMode = config?.mode === 'paper' ? 'live' : 'paper'
       await updateConfig({ mode: newMode })
+      showToast(`Switched to ${newMode} mode`, 'success')
       await loadFastData()
       await loadSlowData()
     } catch (err) {
+      showToast('Failed to change mode', 'error')
       console.error('Error toggling mode:', err)
+    } finally {
+      setActionLoading(prev => ({ ...prev, mode: false }))
     }
+  }
+
+  const handleSettingsSave = async () => {
+    await loadFastData()
+    await loadSlowData()
   }
 
   if (loading) {
@@ -268,6 +518,17 @@ function App() {
 
   return (
     <div className="min-h-screen p-6">
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      
+      {showSettings && (
+        <SettingsModal
+          config={config}
+          onClose={() => setShowSettings(false)}
+          onSave={handleSettingsSave}
+          showToast={showToast}
+        />
+      )}
+
       <div className="max-w-7xl mx-auto">
         <header className="mb-8">
           <div className="flex justify-between items-center">
@@ -275,25 +536,40 @@ function App() {
               <h1 className="text-3xl font-bold">Crypto Arbitrage Dashboard</h1>
               <p className="text-slate-400 mt-1">BTC/ZAR - Luno ↔ Binance</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 items-center">
+              <button
+                onClick={() => setShowSettings(true)}
+                className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition"
+                title="Settings"
+              >
+                <GearIcon />
+              </button>
               <button
                 onClick={handleModeToggle}
-                className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
+                disabled={actionLoading.mode}
+                className={`px-4 py-2 rounded-lg font-semibold transition text-sm flex items-center gap-2 ${
                   botMode === 'paper'
-                    ? 'bg-yellow-600 hover:bg-yellow-700'
-                    : 'bg-green-600 hover:bg-green-700'
-                }`}
+                    ? 'bg-yellow-600 hover:bg-yellow-700 disabled:bg-yellow-800'
+                    : 'bg-green-600 hover:bg-green-700 disabled:bg-green-800'
+                } disabled:cursor-not-allowed`}
               >
+                {actionLoading.mode ? (
+                  <span className="animate-spin">⟳</span>
+                ) : null}
                 {botMode === 'paper' ? 'Paper Mode' : 'Live Mode'}
               </button>
               <button
                 onClick={handleStartStop}
-                className={`px-6 py-3 rounded-lg font-semibold transition ${
+                disabled={actionLoading.start}
+                className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
                   botRunning
-                    ? 'bg-red-600 hover:bg-red-700'
-                    : 'bg-green-600 hover:bg-green-700'
-                }`}
+                    ? 'bg-red-600 hover:bg-red-700 disabled:bg-red-800'
+                    : 'bg-green-600 hover:bg-green-700 disabled:bg-green-800'
+                } disabled:cursor-not-allowed`}
               >
+                {actionLoading.start ? (
+                  <span className="animate-spin">⟳</span>
+                ) : null}
                 {botRunning ? 'Stop Bot' : 'Start Bot'}
               </button>
             </div>
@@ -410,7 +686,15 @@ function App() {
         </div>
 
         <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700 mb-8">
-          <h2 className="text-xl font-semibold mb-4">Configuration</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Configuration</h2>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1"
+            >
+              <GearIcon /> Edit
+            </button>
+          </div>
           {config && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
