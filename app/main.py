@@ -3,15 +3,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import init_db
-from app.arb.loop import arb_loop
+from app.arb.fast_loop import fast_arb_loop
 from app.routes import status, trades, pnl, floats, config, opportunities
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    arb_loop.start()
+    fast_arb_loop.start()
     yield
-    arb_loop.stop()
+    fast_arb_loop.stop()
 
 app = FastAPI(
     title="Crypto Arbitrage Bot API",

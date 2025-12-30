@@ -208,7 +208,7 @@ function App() {
 
   useEffect(() => {
     loadData()
-    const interval = setInterval(loadData, 10000)
+    const interval = setInterval(loadData, 2000)
     return () => clearInterval(interval)
   }, [])
 
@@ -344,12 +344,21 @@ function App() {
                   <div>
                     <div className="text-slate-400 text-sm">Luno BTC/ZAR</div>
                     <div className="font-mono text-lg">R {lastOpportunity.luno_zar?.toLocaleString() || 'N/A'}</div>
+                    <div className="text-slate-500 text-xs">
+                      Bid: R{lastOpportunity.luno_bid?.toLocaleString()} | Ask: R{lastOpportunity.luno_ask?.toLocaleString()}
+                    </div>
                     <div className="text-slate-500 text-xs">≈ ${lastOpportunity.luno_usd?.toFixed(2) || 'N/A'}</div>
                   </div>
                   <div>
                     <div className="text-slate-400 text-sm">Binance BTC/USDT</div>
                     <div className="font-mono text-lg">${lastOpportunity.binance_usd?.toLocaleString() || 'N/A'}</div>
+                    <div className="text-slate-500 text-xs">
+                      Bid: ${lastOpportunity.binance_bid?.toFixed(2)} | Ask: ${lastOpportunity.binance_ask?.toFixed(2)}
+                    </div>
                   </div>
+                </div>
+                <div className="text-center text-xs text-slate-400 border-t border-slate-700 pt-2">
+                  USD/ZAR Rate: {lastOpportunity.usd_zar_rate?.toFixed(4) || 'N/A'} (Live)
                 </div>
                 <div className="border-t border-slate-700 pt-4">
                   <div className="grid grid-cols-3 gap-4 text-center">
@@ -426,9 +435,10 @@ function App() {
         </div>
 
         <footer className="mt-8 text-center text-slate-500 text-sm">
-          <p>Refresh interval: 10 seconds | Data from Luno and Binance APIs</p>
+          <p>Refresh: 2s | Check interval: {status?.bot?.check_interval_ms || 500}ms | WebSocket: {status?.bot?.price_service?.ws_connected ? '✓ Connected' : '○ Connecting'}</p>
           <p className="mt-1">
             API Status: {config?.luno_api_configured ? '✓ Luno' : '✗ Luno'} | {config?.binance_api_configured ? '✓ Binance' : '✗ Binance'}
+            {status?.bot?.stats && ` | Checks: ${status.bot.stats.checks} | Opportunities: ${status.bot.stats.opportunities_found}`}
           </p>
         </footer>
       </div>

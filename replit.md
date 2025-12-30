@@ -5,12 +5,21 @@ A market-neutral crypto arbitrage bot that monitors BTC price spreads between Lu
 
 ## Architecture
 
+### High-Speed Price Service
+- **Binance WebSocket**: Real-time price streaming (~100ms updates)
+- **Luno REST Polling**: Every 1 second (rate limit safe)
+- **In-memory cache**: Instant price reads for arb calculations
+- **Check interval**: 500ms arbitrage calculations
+- **Live FX rates**: USD/ZAR fetched from live APIs every 5 minutes
+
 ### Backend (FastAPI - Python)
 Located in `/app/`:
 - `main.py` - FastAPI entrypoint with CORS and lifecycle management
 - `config.py` - Configuration from environment variables with runtime overrides
 - `database.py` - PostgreSQL/SQLite connection using SQLAlchemy (auto-fallback to SQLite in dev)
-- `arb/loop.py` - Background arbitrage monitoring loop with paper/live mode support
+- `arb/fast_loop.py` - High-speed arbitrage loop with WebSocket + REST hybrid
+- `arb/price_service.py` - Real-time price streaming service
+- `arb/fx_rates.py` - Live USD/ZAR exchange rate service
 - `arb/exchanges/` - Exchange API clients (Luno, Binance)
 - `models/` - Database models (Trade, FloatBalance, PnLRecord, Opportunity, ConfigHistory)
 - `routes/` - REST API endpoints
@@ -113,6 +122,8 @@ VITE_API_BASE=https://your-backend-url.railway.app
 - `config_history` - Configuration change history
 
 ## Recent Changes
+- December 30, 2025: Upgraded to high-speed architecture with WebSocket, 500ms checks, parallel order execution
+- December 30, 2025: Added live USD/ZAR exchange rate fetching (was causing ~10% calculation error with static rate)
 - December 29, 2025: Added paper/live mode, opportunities logging, config history, enhanced dashboard
 - December 11, 2025: Initial project setup with full backend and frontend
 - December 11, 2025: Added SQLite fallback for development, improved error handling

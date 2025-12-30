@@ -1,5 +1,13 @@
 # Railway Deployment Guide - Crypto Arbitrage Bot
 
+## Architecture Overview
+
+This bot uses a **high-speed hybrid architecture**:
+- **Binance**: WebSocket connection for real-time price streaming (~100ms updates)
+- **Luno**: REST polling every 1 second (rate limit safe)
+- **Arbitrage loop**: Checks every 500ms using in-memory price cache
+- **Order execution**: Parallel execution using asyncio.gather for speed
+
 ## Step 1: Push Code to GitHub
 
 First, push your code to a GitHub repository:
@@ -112,12 +120,22 @@ After deployment, verify:
 ## Monitoring
 
 - **Railway Logs**: Real-time logs in Railway dashboard
-- **Frontend Dashboard**: Visual monitoring at your Replit URL
+- **Frontend Dashboard**: Visual monitoring at your Replit URL (refreshes every 2s)
 - **API Endpoints**:
-  - `GET /status` - Bot status and current opportunity
+  - `GET /status` - Bot status, price service stats, and current opportunity
   - `GET /reports/trades` - Trade history
   - `GET /reports/opportunities` - All detected opportunities
   - `GET /reports/pnl` - Profit/Loss summary
+
+## Performance Metrics
+
+The status endpoint now includes:
+- `check_interval_ms`: How often spreads are checked (500ms)
+- `price_service.ws_connected`: Binance WebSocket status
+- `price_service.binance_updates`: Count of real-time price updates
+- `price_service.luno_updates`: Count of Luno poll updates
+- `stats.checks`: Total spread calculations performed
+- `stats.opportunities_found`: Profitable opportunities detected
 
 ## Troubleshooting
 
