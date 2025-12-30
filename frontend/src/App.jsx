@@ -97,22 +97,22 @@ function SettingsModal({ config, onClose, onSave, showToast }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelClass}>Min Net Edge (bps)</label>
+              <label className={labelClass}>Min Net Edge (%)</label>
               <input
                 type="number"
-                step="1"
-                value={formData.min_net_edge_bps}
-                onChange={(e) => handleChange('min_net_edge_bps', e.target.value)}
+                step="0.01"
+                value={(formData.min_net_edge_bps / 100).toFixed(2)}
+                onChange={(e) => handleChange('min_net_edge_bps', parseFloat(e.target.value) * 100)}
                 className={inputClass}
               />
             </div>
             <div>
-              <label className={labelClass}>Slippage Buffer (bps)</label>
+              <label className={labelClass}>Slippage Buffer (%)</label>
               <input
                 type="number"
-                step="1"
-                value={formData.slippage_bps_buffer}
-                onChange={(e) => handleChange('slippage_bps_buffer', e.target.value)}
+                step="0.01"
+                value={(formData.slippage_bps_buffer / 100).toFixed(2)}
+                onChange={(e) => handleChange('slippage_bps_buffer', parseFloat(e.target.value) * 100)}
                 className={inputClass}
               />
             </div>
@@ -241,7 +241,7 @@ function StatusCard({ title, value, subtitle, color = 'green' }) {
   )
 }
 
-function TradesTable({ trades }) {
+function TradesTable({ trades, usdZarRate = 17 }) {
   if (!trades || trades.length === 0) {
     return (
       <div className="text-center py-8 text-slate-400">
@@ -259,7 +259,7 @@ function TradesTable({ trades }) {
             <th className="text-left p-2">Direction</th>
             <th className="text-right p-2">BTC Amount</th>
             <th className="text-right p-2">Spread %</th>
-            <th className="text-right p-2">Profit (USD)</th>
+            <th className="text-right p-2">Profit (ZAR)</th>
             <th className="text-left p-2">Status</th>
           </tr>
         </thead>
@@ -279,7 +279,7 @@ function TradesTable({ trades }) {
               <td className="p-2 text-right font-mono">{trade.btc_amount?.toFixed(6)}</td>
               <td className="p-2 text-right font-mono">{trade.spread_percent?.toFixed(2)}%</td>
               <td className={`p-2 text-right font-mono ${trade.profit_usd >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                ${trade.profit_usd?.toFixed(4)}
+                R {(trade.profit_usd * usdZarRate)?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </td>
               <td className="p-2">
                 <span className={`px-2 py-1 rounded text-xs ${
@@ -314,8 +314,8 @@ function OpportunitiesTable({ opportunities }) {
           <tr className="border-b border-slate-700">
             <th className="text-left p-2">Time</th>
             <th className="text-left p-2">Direction</th>
-            <th className="text-right p-2">Gross (bps)</th>
-            <th className="text-right p-2">Net (bps)</th>
+            <th className="text-right p-2">Gross %</th>
+            <th className="text-right p-2">Net %</th>
             <th className="text-left p-2">Executed</th>
           </tr>
         </thead>
@@ -332,9 +332,9 @@ function OpportunitiesTable({ opportunities }) {
                   {opp.direction === 'luno_to_binance' ? 'L→B' : 'B→L'}
                 </span>
               </td>
-              <td className="p-2 text-right font-mono text-xs">{opp.gross_edge_bps?.toFixed(1)}</td>
+              <td className="p-2 text-right font-mono text-xs">{(opp.gross_edge_bps / 100)?.toFixed(2)}%</td>
               <td className={`p-2 text-right font-mono text-xs ${opp.net_edge_bps >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {opp.net_edge_bps?.toFixed(1)}
+                {(opp.net_edge_bps / 100)?.toFixed(2)}%
               </td>
               <td className="p-2">
                 {opp.was_executed ? (
@@ -511,9 +511,10 @@ function App() {
   const botRunning = status?.bot?.running
   const botMode = status?.bot?.mode || config?.mode || 'paper'
   const uptime = status?.bot?.uptime_seconds
-  const totalPnL = summary?.all_time?.total_profit_usd || 0
+  const usdZarRate = status?.bot?.last_opportunity?.usd_zar_rate || config?.usd_zar_rate || 17
+  const totalPnLZar = (summary?.all_time?.total_profit_usd || 0) * usdZarRate
   const totalTrades = summary?.all_time?.total_trades || 0
-  const todayPnL = summary?.today?.profit_usd || 0
+  const todayPnLZar = (summary?.today?.profit_usd || 0) * usdZarRate
   const lastOpportunity = status?.bot?.last_opportunity
 
   return (
@@ -597,19 +598,19 @@ function App() {
           />
           <StatusCard
             title="Total PnL"
-            value={`$${totalPnL.toFixed(2)}`}
+            value={`R ${totalPnLZar.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
             subtitle={`${totalTrades} total trades`}
-            color={totalPnL >= 0 ? 'green' : 'red'}
+            color={totalPnLZar >= 0 ? 'green' : 'red'}
           />
           <StatusCard
             title="Today's PnL"
-            value={`$${todayPnL.toFixed(2)}`}
+            value={`R ${todayPnLZar.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
             subtitle={`${summary?.today?.trade_count || 0} trades today`}
-            color={todayPnL >= 0 ? 'green' : 'red'}
+            color={todayPnLZar >= 0 ? 'green' : 'red'}
           />
           <StatusCard
             title="Net Edge"
-            value={lastOpportunity?.net_edge_bps ? `${lastOpportunity.net_edge_bps.toFixed(1)} bps` : 'N/A'}
+            value={lastOpportunity?.net_edge_bps ? `${(lastOpportunity.net_edge_bps / 100).toFixed(2)}%` : 'N/A'}
             subtitle={lastOpportunity?.direction?.replace('_to_', ' → ')}
             color="blue"
           />
@@ -618,7 +619,7 @@ function App() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-2 bg-slate-800/30 rounded-lg p-6 border border-slate-700">
             <h2 className="text-xl font-semibold mb-4">Recent Trades</h2>
-            <TradesTable trades={trades} />
+            <TradesTable trades={trades} usdZarRate={usdZarRate} />
           </div>
           <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
             <h2 className="text-xl font-semibold mb-4">Exchange Balances</h2>
@@ -638,13 +639,13 @@ function App() {
                     <div className="text-slate-500 text-xs">
                       Bid: R{lastOpportunity.luno_bid?.toLocaleString()} | Ask: R{lastOpportunity.luno_ask?.toLocaleString()}
                     </div>
-                    <div className="text-slate-500 text-xs">≈ ${lastOpportunity.luno_usd?.toFixed(2) || 'N/A'}</div>
+                    <div className="text-slate-500 text-xs">≈ ${lastOpportunity.luno_usd?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) || 'N/A'} USD</div>
                   </div>
                   <div>
                     <div className="text-slate-400 text-sm">Binance BTC/USDT</div>
-                    <div className="font-mono text-lg">${lastOpportunity.binance_usd?.toLocaleString() || 'N/A'}</div>
+                    <div className="font-mono text-lg">R {(lastOpportunity.binance_usd * lastOpportunity.usd_zar_rate)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) || 'N/A'}</div>
                     <div className="text-slate-500 text-xs">
-                      Bid: ${lastOpportunity.binance_bid?.toFixed(2)} | Ask: ${lastOpportunity.binance_ask?.toFixed(2)}
+                      ${lastOpportunity.binance_usd?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} USD
                     </div>
                   </div>
                 </div>
@@ -655,12 +656,12 @@ function App() {
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
                       <div className="text-slate-400 text-xs">Gross Edge</div>
-                      <div className="font-semibold">{lastOpportunity.gross_edge_bps?.toFixed(1) || '0'} bps</div>
+                      <div className="font-semibold">{(lastOpportunity.gross_edge_bps / 100)?.toFixed(2) || '0'}%</div>
                     </div>
                     <div>
                       <div className="text-slate-400 text-xs">Net Edge</div>
                       <div className={`font-semibold ${lastOpportunity.net_edge_bps >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {lastOpportunity.net_edge_bps?.toFixed(1) || '0'} bps
+                        {(lastOpportunity.net_edge_bps / 100)?.toFixed(2) || '0'}%
                       </div>
                     </div>
                     <div>
@@ -699,7 +700,7 @@ function App() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-slate-400">Min Net Edge:</span>
-                <span className="ml-2 font-mono">{config.min_net_edge_bps} bps</span>
+                <span className="ml-2 font-mono">{(config.min_net_edge_bps / 100).toFixed(2)}%</span>
               </div>
               <div>
                 <span className="text-slate-400">Max Trade BTC:</span>
@@ -711,7 +712,7 @@ function App() {
               </div>
               <div>
                 <span className="text-slate-400">Slippage Buffer:</span>
-                <span className="ml-2 font-mono">{config.slippage_bps_buffer} bps</span>
+                <span className="ml-2 font-mono">{(config.slippage_bps_buffer / 100).toFixed(2)}%</span>
               </div>
               <div>
                 <span className="text-slate-400">Poll Interval:</span>
