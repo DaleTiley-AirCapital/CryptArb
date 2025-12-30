@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any
 from dataclasses import dataclass, field
 from app.arb.exchanges.base import PriceData
 from app.arb.exchanges.luno import luno_client
+from app.arb.exchanges.binance import binance_client
 from app.config import config
 
 logger = logging.getLogger(__name__)
@@ -40,11 +41,19 @@ class PriceService:
         self._binance_ws_url = "wss://stream.binance.com:9443/ws/btcusdt@bookTicker"
         self._reconnect_delay = 1.0
         self._max_reconnect_delay = 30.0
+        self._binance_poll_task: Optional[asyncio.Task] = None
+        self._binance_poll_interval = 1.5
+        self._binance_poll_jitter = 0.3
+        self._ws_fail_count = 0
+        self._ws_max_fails_before_rest = 3
+        self._use_rest_fallback = False
         self._stats = {
             "binance_updates": 0,
+            "binance_rest_updates": 0,
             "luno_updates": 0,
             "ws_reconnects": 0,
             "luno_errors": 0,
+            "binance_errors": 0,
         }
     
     async def start(self):
@@ -73,6 +82,13 @@ class PriceService:
             self._luno_poll_task.cancel()
             try:
                 await self._luno_poll_task
+            except asyncio.CancelledError:
+                pass
+        
+        if self._binance_poll_task:
+            self._binance_poll_task.cancel()
+            try:
+                await self._binance_poll_task
             except asyncio.CancelledError:
                 pass
         
@@ -119,10 +135,17 @@ class PriceService:
                             
             except websockets.exceptions.ConnectionClosed as e:
                 self._ws_connected = False
+                self._ws_fail_count += 1
                 logger.warning(f"Binance WebSocket closed: {e}")
             except Exception as e:
                 self._ws_connected = False
+                self._ws_fail_count += 1
                 logger.error(f"Binance WebSocket error: {e}")
+            
+            if self._ws_fail_count >= self._ws_max_fails_before_rest and not self._use_rest_fallback:
+                self._use_rest_fallback = True
+                logger.warning(f"WebSocket failed {self._ws_fail_count} times, switching to REST fallback")
+                self._binance_poll_task = asyncio.create_task(self._binance_polling_loop())
             
             if self.running:
                 self._stats["ws_reconnects"] += 1
@@ -152,6 +175,24 @@ class PriceService:
             jitter = random.uniform(0, self._luno_jitter)
             await asyncio.sleep(self._luno_poll_interval + jitter)
     
+    async def _binance_polling_loop(self):
+        logger.info("Binance REST polling fallback started")
+        while self.running and self._use_rest_fallback:
+            try:
+                price = await binance_client.get_price("BTCUSDT")
+                
+                if price and price.last > 0:
+                    self.snapshot.binance = price
+                    self.snapshot.binance_updated = datetime.utcnow()
+                    self._stats["binance_rest_updates"] += 1
+                    
+            except Exception as e:
+                self._stats["binance_errors"] += 1
+                logger.warning(f"Binance REST polling error: {e}")
+            
+            jitter = random.uniform(0, self._binance_poll_jitter)
+            await asyncio.sleep(self._binance_poll_interval + jitter)
+    
     def get_prices(self) -> tuple[Optional[PriceData], Optional[PriceData]]:
         return self.snapshot.luno, self.snapshot.binance
     
@@ -162,6 +203,7 @@ class PriceService:
         return {
             **self._stats,
             "ws_connected": self._ws_connected,
+            "rest_fallback": self._use_rest_fallback,
             "luno_age_ms": (datetime.utcnow() - self.snapshot.luno_updated).total_seconds() * 1000 if self.snapshot.luno_updated else None,
             "binance_age_ms": (datetime.utcnow() - self.snapshot.binance_updated).total_seconds() * 1000 if self.snapshot.binance_updated else None,
         }
