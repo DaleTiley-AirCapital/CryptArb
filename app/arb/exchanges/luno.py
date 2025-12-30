@@ -1,8 +1,11 @@
 import httpx
 import base64
+import logging
 from typing import Optional
 from app.arb.exchanges.base import ExchangeClient, PriceData, OrderResult, Balance
 from app.config import config
+
+logger = logging.getLogger(__name__)
 
 class LunoClient(ExchangeClient):
     BASE_URL = "https://api.luno.com/api/1"
@@ -19,9 +22,19 @@ class LunoClient(ExchangeClient):
         return {"Authorization": f"Basic {encoded}"}
     
     async def get_price(self, pair: str = "XBTZAR") -> PriceData:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(f"{self.BASE_URL}/ticker?pair={pair}")
+            
+            if response.status_code == 429:
+                raise Exception("Luno rate limit exceeded (429)")
+            elif response.status_code != 200:
+                raise Exception(f"Luno API error: {response.status_code} - {response.text[:200]}")
+            
             data = response.json()
+            
+            if "error" in data:
+                raise Exception(f"Luno API error: {data['error']}")
+            
             return PriceData(
                 bid=float(data.get("bid", 0)),
                 ask=float(data.get("ask", 0)),

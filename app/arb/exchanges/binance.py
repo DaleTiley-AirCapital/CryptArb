@@ -79,7 +79,7 @@ class BinanceClient(ExchangeClient):
         base_url = await self._get_working_url()
         async with httpx.AsyncClient() as client:
             timestamp = int(time.time() * 1000)
-            params = {"timestamp": timestamp}
+            params: dict = {"timestamp": timestamp}
             params["signature"] = self._sign(params)
             
             response = await client.get(

@@ -36,7 +36,7 @@ class PriceService:
         self._binance_ws_task: Optional[asyncio.Task] = None
         self._luno_poll_task: Optional[asyncio.Task] = None
         self._ws_connected = False
-        self._luno_poll_interval = 1.2
+        self._luno_poll_interval = 1.5
         self._luno_jitter = 0.3
         self._binance_ws_url = "wss://stream.binance.com:9443/ws/btcusdt@bookTicker"
         self._reconnect_delay = 1.0

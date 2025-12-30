@@ -1,0 +1,59 @@
+Starting Container
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:app.arb.price_service:Price service starting...
+INFO:app.arb.price_service:Price service started - WebSocket + REST polling active
+INFO:     Application startup complete.
+INFO:app.arb.price_service:Connecting to Binance WebSocket: wss://stream.binance.com:9443/ws/btcusdt@bookTicker
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:app.arb.price_service:Binance WebSocket connected - receiving real-time prices
+INFO:     100.64.0.2:39061 - "GET /health HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:app.arb.fast_loop:Fast arbitrage loop started in PAPER mode (check interval: 0.5s)
+INFO:httpx:HTTP Request: GET https://api.exchangerate-api.com/v4/latest/USD "HTTP/1.1 200 OK"
+INFO:app.arb.fx_rates:Live USD/ZAR rate fetched: 16.6800
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:46524 - "GET /config HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:46524 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46596 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46534 - "GET /floats HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46614 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46618 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46560 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46626 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46614 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46524 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46560 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46566 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46656 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46588 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46528 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46590 - "GET /floats HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46606 - "GET /floats HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46656 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46528 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46588 - "GET /status HTTP/1.1" 200 OK
+WARNING:app.arb.price_service:Luno polling error: 
+INFO:     100.64.0.3:46732 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46628 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46588 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46728 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46534 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46596 - "GET /floats HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46618 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46628 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46588 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46534 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46640 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46626 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46614 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46646 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46560 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46524 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46756 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46590 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:46606 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+WARNING:app.arb.price_service:Luno polling error: 
