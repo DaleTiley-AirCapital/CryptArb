@@ -122,6 +122,7 @@ VITE_API_BASE=https://your-backend-url.railway.app
 - `config_history` - Configuration change history
 
 ## Recent Changes
+- December 30, 2025: Fixed Railway deployment (PORT handling, updated fallback FX rate to 17.0)
 - December 30, 2025: Upgraded to high-speed architecture with WebSocket, 500ms checks, parallel order execution
 - December 30, 2025: Added live USD/ZAR exchange rate fetching (was causing ~10% calculation error with static rate)
 - December 29, 2025: Added paper/live mode, opportunities logging, config history, enhanced dashboard

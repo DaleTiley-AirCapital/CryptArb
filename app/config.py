@@ -30,7 +30,7 @@ class Config:
     MIN_REMAINING_ZAR_LUNO: float = float(os.environ.get("MIN_REMAINING_ZAR_LUNO", "1000"))
     MIN_REMAINING_BTC_BINANCE: float = float(os.environ.get("MIN_REMAINING_BTC_BINANCE", "0.001"))
     
-    USD_ZAR_RATE: float = float(os.environ.get("USD_ZAR_RATE", "18.5"))
+    USD_ZAR_RATE: float = float(os.environ.get("USD_ZAR_RATE", "17.0"))
     
     ERROR_STOP_COUNT: int = int(os.environ.get("ERROR_STOP_COUNT", "5"))
     

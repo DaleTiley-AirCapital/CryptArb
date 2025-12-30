@@ -11,7 +11,7 @@ class FXRateService:
         self._usd_zar_rate: Optional[float] = None
         self._last_fetch: Optional[datetime] = None
         self._cache_duration = timedelta(minutes=5)
-        self._fallback_rate = 18.5
+        self._fallback_rate = 17.0
     
     async def get_usd_zar_rate(self) -> float:
         if self._usd_zar_rate and self._last_fetch:

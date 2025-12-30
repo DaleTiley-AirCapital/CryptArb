@@ -85,6 +85,8 @@ BINANCE_TRADING_FEE=0.001
 2. Check the **Deployments** tab to see build progress
 3. Once deployed, click on the deployment to see logs
 
+**Note**: The app automatically uses Railway's PORT environment variable (defaults to 8080).
+
 ## Step 6: Get Your Backend URL
 
 1. Go to **Settings** → **Networking** → **Generate Domain**
