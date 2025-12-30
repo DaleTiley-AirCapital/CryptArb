@@ -181,21 +181,13 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const loadData = async () => {
+  const loadFastData = async () => {
     try {
-      const [statusData, summaryData, tradesData, floatsData, configData, oppsData] = await Promise.all([
+      const [statusData, oppsData] = await Promise.all([
         fetchStatus(),
-        fetchSummary(),
-        fetchTrades(20),
-        fetchFloats(),
-        fetchConfig(),
         fetchOpportunities(50)
       ])
       setStatus(statusData)
-      setSummary(summaryData)
-      setTrades(tradesData.trades || [])
-      setFloats(floatsData.floats)
-      setConfig(configData)
       setOpportunities(oppsData.opportunities || [])
       setError(null)
     } catch (err) {
@@ -206,10 +198,32 @@ function App() {
     }
   }
 
+  const loadSlowData = async () => {
+    try {
+      const [summaryData, tradesData, floatsData, configData] = await Promise.all([
+        fetchSummary(),
+        fetchTrades(20),
+        fetchFloats(),
+        fetchConfig()
+      ])
+      setSummary(summaryData)
+      setTrades(tradesData.trades || [])
+      setFloats(floatsData.floats)
+      setConfig(configData)
+    } catch (err) {
+      console.error('Error loading slow data:', err)
+    }
+  }
+
   useEffect(() => {
-    loadData()
-    const interval = setInterval(loadData, 2000)
-    return () => clearInterval(interval)
+    loadFastData()
+    loadSlowData()
+    const fastInterval = setInterval(loadFastData, 2000)
+    const slowInterval = setInterval(loadSlowData, 10000)
+    return () => {
+      clearInterval(fastInterval)
+      clearInterval(slowInterval)
+    }
   }, [])
 
   const handleStartStop = async () => {
@@ -435,7 +449,7 @@ function App() {
         </div>
 
         <footer className="mt-8 text-center text-slate-500 text-sm">
-          <p>Refresh: 2s | Check interval: {status?.bot?.check_interval_ms || 500}ms | WebSocket: {status?.bot?.price_service?.ws_connected ? '✓ Connected' : '○ Connecting'}</p>
+          <p>Status: 2s | Config: 10s | Check interval: {status?.bot?.check_interval_ms || 500}ms | WebSocket: {status?.bot?.price_service?.ws_connected ? '✓ Connected' : '○ Connecting'}</p>
           <p className="mt-1">
             API Status: {config?.luno_api_configured ? '✓ Luno' : '✗ Luno'} | {config?.binance_api_configured ? '✓ Binance' : '✗ Binance'}
             {status?.bot?.stats && ` | Checks: ${status.bot.stats.checks} | Opportunities: ${status.bot.stats.opportunities_found}`}

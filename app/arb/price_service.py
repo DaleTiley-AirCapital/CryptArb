@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import random
 import websockets
 from datetime import datetime
 from typing import Optional, Dict, Any
@@ -34,7 +35,8 @@ class PriceService:
         self._binance_ws_task: Optional[asyncio.Task] = None
         self._luno_poll_task: Optional[asyncio.Task] = None
         self._ws_connected = False
-        self._luno_poll_interval = 1.0
+        self._luno_poll_interval = 1.2
+        self._luno_jitter = 0.3
         self._binance_ws_url = "wss://stream.binance.com:9443/ws/btcusdt@bookTicker"
         self._reconnect_delay = 1.0
         self._max_reconnect_delay = 30.0
@@ -147,7 +149,8 @@ class PriceService:
                 self._stats["luno_errors"] += 1
                 logger.warning(f"Luno polling error: {e}")
             
-            await asyncio.sleep(self._luno_poll_interval)
+            jitter = random.uniform(0, self._luno_jitter)
+            await asyncio.sleep(self._luno_poll_interval + jitter)
     
     def get_prices(self) -> tuple[Optional[PriceData], Optional[PriceData]]:
         return self.snapshot.luno, self.snapshot.binance

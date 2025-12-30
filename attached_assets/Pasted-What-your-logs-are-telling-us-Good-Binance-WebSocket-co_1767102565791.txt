@@ -1,0 +1,110 @@
+What your logs are telling us
+✅ Good
+Binance WebSocket connected - receiving real-time prices
+This means you’re not polling Binance for prices anymore (perfect).
+
+Fast arbitrage loop ... (check interval: 0.5s)
+The loop is just checking every 0.5s, which is fine as long as it’s not also calling Luno every 0.5s.
+
+❌ Problem
+You are still calling:
+
+GET https://api.luno.com/api/1/ticker?pair=XBTZAR multiple times per second (you can see repeated “200 OK” lines, then warnings)
+
+That will break if Luno is effectively ~60 requests/minute (≈ 1/sec). Your 0.5s loop + any extra polling from the “price service” = > 60/min, so you get intermittent errors.
+
+Also, your frontend is hammering your backend:
+
+Many GET /config, GET /status, GET /reports/..., GET /floats per second.
+That won’t break Luno directly, but it can overload your backend and make timing worse.
+
+The fix (simple and important): “One poller per external API”
+1) Luno must be polled by one single task
+Do not let both:
+
+price_service poll Luno, and
+
+fast_loop poll Luno again.
+
+Instead:
+
+price_service polls Luno at 1.1s–1.5s
+
+it stores the latest Luno bid/ask in memory (or Redis later)
+
+fast_loop reads the cached latest price (no HTTP call)
+
+Rule: only price_service touches Luno.
+
+2) Set Luno polling interval to safe values
+If Luno is 60/min, set:
+
+LUNO_POLL_INTERVAL = 1.2 seconds (50/min) + a little jitter
+
+Example logic:
+
+sleep 1.2s + random(0–0.2s) so you don’t accidentally sync into bursts.
+
+3) Don’t fetch FX every loop
+You’re doing:
+
+GET https://api.exchangerate-api.com/v4/latest/USD
+That should be every 60–300 seconds, not every 0.5–1s.
+
+4) Slow your dashboard polling
+Your UI is effectively DDoS’ing your own API.
+
+Set frontend refresh to something like:
+
+/status: every 2s
+
+/reports/opportunities: every 5–10s
+
+/config: on load + when you change it (not every second)
+
+/floats: every 10–30s (balances don’t change unless you trade)
+
+Or even better later: use Server-Sent Events (SSE) for live opportunities.
+
+About “it cannot build the bot to run in ms”
+That’s correct—and you don’t need ms for the MVP.
+
+The “speed” comes from:
+
+Binance WebSocket (instant updates)
+
+Luno 1/sec (bounded by their limit)
+
+and you compensate by setting a bigger required edge for live trading.
+
+So instead of trying to trade on 20 bps net, you set:
+
+paper logging: record everything
+
+live trading threshold: start around 80–150 bps net (0.8%–1.5%) until you prove fills/slippage
+
+That’s how you make a slower bot safe.
+
+Quick diagnosis: why you’re seeing Luno polling error
+Most likely:
+
+you’re polling Luno faster than allowed (0.5s loop + service), or
+
+short bursts exceed their minute cap, or
+
+timeouts due to too many concurrent HTTP calls.
+
+You’ll fix all three by making Luno requests single-threaded, rate-limited, cached.
+
+If you paste me just these 3 config values, I’ll tell you the “safe live threshold”
+LUNO_POLL_INTERVAL (or whatever you named it)
+
+MIN_NET_EDGE_BPS
+
+SLIPPAGE_BPS_BUFFER + assumed fee bps for each exchange
+
+Then I’ll give you a clean starting configuration for:
+
+paper mode stats
+
+safe first live trades with R500–R1,000 test float
