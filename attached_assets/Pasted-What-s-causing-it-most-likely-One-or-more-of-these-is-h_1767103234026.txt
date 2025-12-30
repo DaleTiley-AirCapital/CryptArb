@@ -1,0 +1,147 @@
+What’s causing it (most likely)
+One (or more) of these is happening:
+
+Two different parts of your backend are calling Luno
+
+price_service polls Luno (good)
+
+but fast_loop (or some “get latest price” function) also calls Luno (bad)
+
+Your Luno polling is concurrent
+
+if a poll takes >500ms and you schedule another one, you get overlapping requests → bursty rate, triggers limit.
+
+Your UI is hammering your own API
+Your frontend is calling /config, /status, /floats, /reports/* very frequently. That won’t call Luno directly unless those endpoints fetch fresh Luno data each time (common mistake).
+
+The “correct” architecture (1 Luno call per second, max)
+Rule: Only the price_service talks to Luno
+Everything else reads from a cache (in-memory object).
+
+price_service:
+
+polls Luno ticker every 1.1s–1.5s
+
+writes latest_luno into cache
+
+fast_loop:
+
+runs every 0.5s if you want
+
+never calls Luno
+
+uses cached Luno + cached Binance WS price
+
+API endpoints (/status, /floats, etc.)
+
+must NOT fetch Luno live on request
+
+must return cached values (or DB values)
+
+Fix 1: Put a hard rate limiter + “no overlap” lock on Luno polling
+Implement BOTH:
+
+a minimum interval (e.g. 1.2s)
+
+an asyncio.Lock() so polls can’t overlap
+
+Example (drop-in pattern):
+
+# app/arb/price_service.py
+import asyncio, time
+import httpx
+
+class PriceCache:
+    def __init__(self):
+        self.luno = None
+        self.binance = None
+        self.fx = None
+        self.updated_at = {}
+
+CACHE = PriceCache()
+
+LUNO_MIN_INTERVAL = 1.2  # seconds (<= 50/min safely)
+_luno_lock = asyncio.Lock()
+_last_luno_ts = 0.0
+
+async def poll_luno_forever():
+    global _last_luno_ts
+    async with httpx.AsyncClient(timeout=5) as client:
+        while True:
+            async with _luno_lock:
+                now = time.time()
+                wait = (_last_luno_ts + LUNO_MIN_INTERVAL) - now
+                if wait > 0:
+                    await asyncio.sleep(wait)
+
+                try:
+                    r = await client.get("https://api.luno.com/api/1/ticker", params={"pair":"XBTZAR"})
+                    r.raise_for_status()
+                    CACHE.luno = r.json()
+                    CACHE.updated_at["luno"] = time.time()
+                    _last_luno_ts = time.time()
+                except Exception as e:
+                    # log error but DO NOT loop faster because of errors
+                    _last_luno_ts = time.time()
+                    # logger.warning("Luno polling error: %s", e)
+            await asyncio.sleep(0)  # yield
+That guarantees no bursts and no overlapping calls.
+
+Fix 2: Make your fast loop read the cache (zero HTTP)
+# app/arb/fast_loop.py
+from app.arb.price_service import CACHE
+
+async def fast_loop():
+    while True:
+        luno = CACHE.luno
+        binance = CACHE.binance  # from WS
+        fx = CACHE.fx            # cached
+
+        if not luno or not binance or not fx:
+            await asyncio.sleep(0.5)
+            continue
+
+        # compute spreads here using cached values
+        await asyncio.sleep(0.5)
+Fix 3: FX rate should NOT be fetched in the fast loop
+Fetch FX every 60–300 seconds, not every 0.5s.
+
+FX_INTERVAL = 120s is totally fine.
+
+Fix 4: Your frontend refresh intervals are too aggressive
+Set these (easy win):
+
+/status: every 2s
+
+/reports/summary: every 5–10s
+
+/reports/opportunities: every 5–10s
+
+/floats: every 15–30s
+
+/config: only once on page load (and after you save)
+
+If any endpoint currently fetches Luno “live”, change it to return cached values.
+
+Quick sanity check
+If Luno truly is 60/min, set:
+
+LUNO_MIN_INTERVAL = 1.2s (≈ 50/min)
+That gives you breathing room for:
+
+occasional retries
+
+startup calls
+
+any accidental extra call you haven’t found yet
+
+What I need from you (no long back-and-forth)
+Paste the code (or describe) where Luno is called in your project:
+
+is it only inside price_service?
+
+do any endpoints call get_luno_ticker() directly?
+
+does fast_loop call Luno?
+
+If you paste the function(s) that call Luno, I’ll point to the exact line(s) to remove so you end up with exactly one Luno request per ~1.2 seconds and the warnings disappear.

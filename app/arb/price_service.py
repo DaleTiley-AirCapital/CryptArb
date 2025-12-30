@@ -30,6 +30,8 @@ class PriceSnapshot:
 
 
 class PriceService:
+    _luno_lock = asyncio.Lock()
+    
     def __init__(self):
         self.snapshot = PriceSnapshot()
         self.running = False
@@ -37,7 +39,8 @@ class PriceService:
         self._luno_poll_task: Optional[asyncio.Task] = None
         self._ws_connected = False
         self._luno_poll_interval = 1.5
-        self._luno_jitter = 0.3
+        self._luno_jitter = 0.5
+        self._last_luno_call = 0.0
         self._binance_ws_url = "wss://stream.binance.com:9443/ws/btcusdt@bookTicker"
         self._reconnect_delay = 1.0
         self._max_reconnect_delay = 30.0
@@ -154,26 +157,35 @@ class PriceService:
                 reconnect_delay = min(reconnect_delay * 2, self._max_reconnect_delay)
     
     async def _luno_polling_loop(self):
+        import time
         while self.running:
-            try:
-                start = datetime.utcnow()
-                price = await luno_client.get_price("XBTZAR")
+            async with self._luno_lock:
+                now = time.time()
+                wait = (self._last_luno_call + self._luno_poll_interval) - now
+                if wait > 0:
+                    await asyncio.sleep(wait)
                 
-                if price and price.last > 0:
-                    self.snapshot.luno = price
-                    self.snapshot.luno_updated = datetime.utcnow()
-                    self._stats["luno_updates"] += 1
+                try:
+                    start = datetime.utcnow()
+                    price = await luno_client.get_price("XBTZAR")
+                    self._last_luno_call = time.time()
                     
-                    fetch_time = (datetime.utcnow() - start).total_seconds() * 1000
-                    if self._stats["luno_updates"] % 60 == 0:
-                        logger.debug(f"Luno price fetched in {fetch_time:.0f}ms: {price.last:.0f} ZAR")
+                    if price and price.last > 0:
+                        self.snapshot.luno = price
+                        self.snapshot.luno_updated = datetime.utcnow()
+                        self._stats["luno_updates"] += 1
                         
-            except Exception as e:
-                self._stats["luno_errors"] += 1
-                logger.warning(f"Luno polling error: {e}")
+                        fetch_time = (datetime.utcnow() - start).total_seconds() * 1000
+                        if self._stats["luno_updates"] % 60 == 0:
+                            logger.debug(f"Luno price fetched in {fetch_time:.0f}ms: {price.last:.0f} ZAR")
+                            
+                except Exception as e:
+                    self._last_luno_call = time.time()
+                    self._stats["luno_errors"] += 1
+                    logger.warning(f"Luno polling error: {e}")
             
             jitter = random.uniform(0, self._luno_jitter)
-            await asyncio.sleep(self._luno_poll_interval + jitter)
+            await asyncio.sleep(jitter)
     
     async def _binance_polling_loop(self):
         logger.info("Binance REST polling fallback started")

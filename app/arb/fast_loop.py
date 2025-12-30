@@ -368,7 +368,7 @@ class FastArbitrageLoop:
             await self.run_iteration()
             
             balance_update_counter += 1
-            if balance_update_counter >= 20:
+            if balance_update_counter >= 60:
                 asyncio.create_task(self.update_float_balances())
                 balance_update_counter = 0
             
