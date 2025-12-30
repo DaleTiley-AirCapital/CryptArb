@@ -22,27 +22,43 @@ class LunoClient(ExchangeClient):
         return {"Authorization": f"Basic {encoded}"}
     
     async def get_price(self, pair: str = "XBTZAR") -> PriceData:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{self.BASE_URL}/ticker?pair={pair}")
-            
-            if response.status_code == 429:
-                raise Exception("Luno rate limit exceeded (429)")
-            elif response.status_code != 200:
-                raise Exception(f"Luno API error: {response.status_code} - {response.text[:200]}")
-            
-            data = response.json()
-            
-            if "error" in data:
-                raise Exception(f"Luno API error: {data['error']}")
-            
-            return PriceData(
-                bid=float(data.get("bid", 0)),
-                ask=float(data.get("ask", 0)),
-                last=float(data.get("last_trade", 0)),
-                exchange="luno",
-                pair=pair,
-                timestamp=data.get("timestamp")
-            )
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(f"{self.BASE_URL}/ticker?pair={pair}")
+                
+                if response.status_code == 429:
+                    raise Exception("Luno rate limit exceeded (429)")
+                elif response.status_code != 200:
+                    raise Exception(f"Luno HTTP {response.status_code}: {response.text[:200]}")
+                
+                data = response.json()
+                
+                if "error" in data:
+                    raise Exception(f"Luno API error: {data['error']}")
+                
+                bid = data.get("bid")
+                ask = data.get("ask")
+                last = data.get("last_trade")
+                
+                if not bid or not ask or not last:
+                    raise Exception(f"Luno missing price data: bid={bid}, ask={ask}, last={last}")
+                
+                return PriceData(
+                    bid=float(bid),
+                    ask=float(ask),
+                    last=float(last),
+                    exchange="luno",
+                    pair=pair,
+                    timestamp=data.get("timestamp")
+                )
+        except httpx.TimeoutException:
+            raise Exception("Luno request timeout (10s)")
+        except httpx.ConnectError as e:
+            raise Exception(f"Luno connection error: {e}")
+        except Exception as e:
+            if str(e):
+                raise
+            raise Exception(f"Luno unknown error: {type(e).__name__}")
     
     async def get_balance(self, currency: str = "XBT") -> Balance:
         if not self.api_key:

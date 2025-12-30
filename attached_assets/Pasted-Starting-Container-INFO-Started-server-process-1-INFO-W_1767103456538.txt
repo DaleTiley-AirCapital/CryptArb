@@ -1,0 +1,61 @@
+Starting Container
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:app.arb.price_service:Connecting to Binance WebSocket: wss://stream.binance.com:9443/ws/btcusdt@bookTicker
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:app.arb.price_service:Price service starting...
+INFO:app.arb.price_service:Price service started - WebSocket + REST polling active
+INFO:     Application startup complete.
+INFO:     100.64.0.2:55719 - "GET /health HTTP/1.1" 200 OK
+INFO:app.arb.price_service:Binance WebSocket connected - receiving real-time prices
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:app.arb.fast_loop:Fast arbitrage loop started in PAPER mode (check interval: 0.5s)
+INFO:httpx:HTTP Request: GET https://api.exchangerate-api.com/v4/latest/USD "HTTP/1.1 200 OK"
+INFO:app.arb.fx_rates:Live USD/ZAR rate fetched: 16.6800
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.luno.com/api/1/ticker?pair=XBTZAR "HTTP/1.1 200 OK"
+INFO:     100.64.0.3:16294 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16362 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16408 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16408 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16408 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16334 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16346 - "GET /floats HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16304 - "GET /floats HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16298 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16346 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16364 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16388 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16442 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16304 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16362 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16294 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16320 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16360 - "GET /floats HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16298 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16374 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16404 - "GET /reports/opportunities?limit=50 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16320 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16362 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16340 - "GET /floats HTTP/1.1" 200 OK
+WARNING:app.arb.price_service:Luno polling error: 
+INFO:     100.64.0.3:16376 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16408 - "GET /floats HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16334 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16362 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16464 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16418 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16478 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16362 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16464 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16408 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16420 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16418 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16346 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16364 - "GET /reports/summary HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16420 - "GET /status HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16362 - "GET /config HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16304 - "GET /reports/trades?limit=20 HTTP/1.1" 200 OK
+INFO:     100.64.0.3:16456 - "GET /floats HTTP/1.1" 200 OK
