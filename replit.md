@@ -166,6 +166,9 @@ The bot maintains a rolling buffer of the last 6 price checks in memory for real
 **Data retention:** ~170k ticks/day at 500ms intervals. Consider archival strategy for long-term storage.
 
 ## Recent Changes
+- December 31, 2025: Added Live Mode confirmation popup with warning before switching from Paper to Live
+- December 31, 2025: Added visual differentiation between Paper and Live modes (amber styling for Paper)
+- December 31, 2025: Paper mode shows Simulated Trade Balances, Live mode shows Exchange Balances
 - December 31, 2025: Added tick buffer with async database persistence for historical price analysis
 - December 31, 2025: Added Net Edge Analysis section with distribution stats and threshold impact table
 - December 31, 2025: Added Missed Opportunities section with amber/red styling
