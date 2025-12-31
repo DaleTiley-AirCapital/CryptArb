@@ -166,6 +166,11 @@ The bot maintains a rolling buffer of the last 6 price checks in memory for real
 **Data retention:** ~170k ticks/day at 500ms intervals. Consider archival strategy for long-term storage.
 
 ## Recent Changes
+- December 31, 2025: Added accumulated profit tracking in stable currency (ZAR/USD) - profits now accumulate in paper_floats
+- December 31, 2025: Added auto-rebalance feature: when stuck in one direction for 10+ consecutive opportunities, accepts lower-profit reverse trades (20 bps threshold)
+- December 31, 2025: Added inventory tracking: consecutive_same_direction, rebalance_mode, rebalance_trades_executed
+- December 31, 2025: Fixed trade sizing to properly respect safety buffers (MIN_REMAINING_* now enforced)
+- December 31, 2025: Added skip reason counters: skipped_insufficient_balance, skipped_below_threshold
 - December 31, 2025: Added Live Mode confirmation popup with warning before switching from Paper to Live
 - December 31, 2025: Added visual differentiation between Paper and Live modes (amber styling for Paper)
 - December 31, 2025: Paper mode shows Simulated Trade Balances, Live mode shows Exchange Balances

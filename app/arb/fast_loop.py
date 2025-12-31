@@ -77,6 +77,9 @@ class FastArbitrageLoop:
             "luno_btc": 0.0,
             "luno_zar": 0.0,
             "last_direction": None,
+            "accumulated_profit_zar": 0.0,
+            "accumulated_profit_usd": 0.0,
+            "trades_completed": 0,
         }
         self._paper_floats_initialized = False
         self._tick_buffer: deque[TickData] = deque(maxlen=self.TICK_BUFFER_SIZE)
@@ -368,18 +371,82 @@ class FastArbitrageLoop:
             return False
         
         rebalance_threshold = self.get_setting("REBALANCE_THRESHOLD_BPS", 20)
-        net_edge = spread_info.get("net_edge_bps", 0)
         
-        if opposite_direction != spread_info.get("direction"):
-            net_edge = -net_edge
+        current_direction = spread_info.get("direction")
+        if current_direction == opposite_direction:
+            net_edge = spread_info.get("net_edge_bps", 0)
+        else:
+            luno_zar = spread_info.get("luno_zar", 0)
+            luno_bid = spread_info.get("luno_bid", luno_zar)
+            luno_ask = spread_info.get("luno_ask", luno_zar)
+            binance_usd = spread_info.get("binance_usd", 0)
+            binance_bid = spread_info.get("binance_bid", binance_usd)
+            binance_ask = spread_info.get("binance_ask", binance_usd)
+            usd_zar = spread_info.get("usd_zar_rate", 17.0)
+            
+            luno_fee = self.get_setting("LUNO_TRADING_FEE", 0.001)
+            binance_fee = self.get_setting("BINANCE_TRADING_FEE", 0.001)
+            slippage_bps = self.get_setting("SLIPPAGE_BPS_BUFFER", 10)
+            slippage_factor = slippage_bps / 10000
+            
+            if opposite_direction == "luno_to_binance":
+                buy_price = luno_ask * (1 + slippage_factor)
+                sell_price = binance_bid * (1 - slippage_factor)
+                gross_spread = (sell_price - (buy_price / usd_zar)) / (buy_price / usd_zar) if buy_price > 0 else 0
+            else:
+                buy_price = binance_ask * (1 + slippage_factor)
+                sell_price = luno_bid * (1 - slippage_factor)
+                gross_spread = ((sell_price / usd_zar) - buy_price) / buy_price if buy_price > 0 else 0
+            
+            total_fees = luno_fee + binance_fee
+            net_edge = (gross_spread - total_fees) * 10000
         
         if net_edge >= rebalance_threshold:
             logger.info(f"[REBALANCE] Triggering rebalance trade: {opposite_direction} at {net_edge:.1f}bps (threshold: {rebalance_threshold}bps)")
             self._inventory_status["rebalance_mode"] = True
             
-            rebalance_spread = spread_info.copy()
-            rebalance_spread["direction"] = opposite_direction
-            rebalance_spread["is_profitable"] = True
+            luno_zar = spread_info.get("luno_zar", 0)
+            luno_bid = spread_info.get("luno_bid", luno_zar)
+            luno_ask = spread_info.get("luno_ask", luno_zar)
+            binance_usd = spread_info.get("binance_usd", 0)
+            binance_bid = spread_info.get("binance_bid", binance_usd)
+            binance_ask = spread_info.get("binance_ask", binance_usd)
+            usd_zar = spread_info.get("usd_zar_rate", 17.0)
+            luno_fee = self.get_setting("LUNO_TRADING_FEE", 0.001)
+            binance_fee = self.get_setting("BINANCE_TRADING_FEE", 0.001)
+            slippage_factor = self.get_setting("SLIPPAGE_BPS_BUFFER", 10) / 10000
+            
+            if opposite_direction == "luno_to_binance":
+                buy_exchange = "luno"
+                sell_exchange = "binance"
+                buy_price = luno_ask * (1 + slippage_factor)
+                sell_price = binance_bid * (1 - slippage_factor)
+            else:
+                buy_exchange = "binance"
+                sell_exchange = "luno"
+                buy_price = binance_ask * (1 + slippage_factor)
+                sell_price = luno_bid * (1 - slippage_factor)
+            
+            gross_edge_bps = net_edge + ((luno_fee + binance_fee) * 10000)
+            
+            rebalance_spread = {
+                "direction": opposite_direction,
+                "buy_exchange": buy_exchange,
+                "sell_exchange": sell_exchange,
+                "buy_price": buy_price,
+                "sell_price": sell_price,
+                "gross_edge_bps": gross_edge_bps,
+                "net_edge_bps": net_edge,
+                "spread_percent": net_edge / 100,
+                "is_profitable": True,
+                "luno_zar": luno_zar,
+                "luno_bid": luno_bid,
+                "luno_ask": luno_ask,
+                "binance_usd": binance_usd,
+                "binance_bid": binance_bid,
+                "binance_ask": binance_ask,
+                "usd_zar_rate": usd_zar,
+            }
             
             btc_amount, trade_size_zar = self.calculate_trade_size(rebalance_spread, opposite_direction)
             if btc_amount > 0:
@@ -466,6 +533,9 @@ class FastArbitrageLoop:
                 self._paper_floats["luno_zar"] += trade_size_zar * (1 - luno_fee)
             
             self._paper_floats["last_direction"] = direction
+            self._paper_floats["accumulated_profit_zar"] += profit_zar
+            self._paper_floats["accumulated_profit_usd"] += profit_usd
+            self._paper_floats["trades_completed"] += 1
             
             logger.info(f"[PAPER] Trade: {direction} | Size: {btc_amount:.6f} BTC (R{trade_size_zar:.2f}) | Profit: R{profit_zar:.2f}")
             logger.info(f"[PAPER] New floats: Binance BTC={self._paper_floats['binance_btc']:.6f}, USDT={self._paper_floats['binance_usdt']:.2f} | Luno BTC={self._paper_floats['luno_btc']:.6f}, ZAR={self._paper_floats['luno_zar']:.2f}")
@@ -761,6 +831,9 @@ class FastArbitrageLoop:
             "luno_btc": 0.0,
             "luno_zar": 0.0,
             "last_direction": None,
+            "accumulated_profit_zar": 0.0,
+            "accumulated_profit_usd": 0.0,
+            "trades_completed": 0,
         }
         self._paper_floats_initialized = False
         self.total_trades = 0
