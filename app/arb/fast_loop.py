@@ -170,7 +170,12 @@ class FastArbitrageLoop:
     def add_tick_to_buffer(self, tick: TickData):
         if len(self._tick_buffer) >= self.TICK_BUFFER_SIZE:
             oldest_tick = self._tick_buffer[0]
-            if self._tick_queue and not self._tick_queue.full():
+            second_oldest = self._tick_buffer[1] if len(self._tick_buffer) > 1 else None
+            should_persist = True
+            if second_oldest and round(oldest_tick.net_edge_bps, 1) == round(second_oldest.net_edge_bps, 1):
+                should_persist = False
+            
+            if should_persist and not self._tick_queue.full():
                 try:
                     self._tick_queue.put_nowait(oldest_tick)
                 except asyncio.QueueFull:

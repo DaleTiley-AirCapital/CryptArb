@@ -155,7 +155,8 @@ The bot maintains a rolling buffer of the last 6 price checks in memory for real
 2. Each check creates a "tick" containing: prices, FX rate, spread %, net edge, direction, profitability
 3. The last 6 ticks are kept in memory (deque) for instant access
 4. When the 6th tick arrives, the oldest tick is queued for async database write
-5. A background writer task persists ticks without blocking the main loop
+5. **Deduplication:** Only persists tick if net edge differs from previous tick (reduces duplicates when prices are stable)
+6. A background writer task persists ticks without blocking the main loop
 
 **API Endpoints:**
 - `GET /ticks?hours=1&limit=1000` - Fetch historical ticks
