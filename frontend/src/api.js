@@ -69,6 +69,11 @@ export async function fetchNetEdgeAnalysis(hours = 24) {
   return res.json();
 }
 
+export async function fetchNetEdgeRawData(hours = 24, limit = 1000) {
+  const res = await fetch(`${API_BASE}/reports/net-edge-raw?hours=${hours}&limit=${limit}`);
+  return res.json();
+}
+
 export function exportToCSV(data, filename) {
   const headers = Object.keys(data[0] || {});
   const csvContent = [
@@ -82,4 +87,12 @@ export function exportToCSV(data, filename) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export async function exportToXLSX(data, filename) {
+  const XLSX = await import('xlsx');
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
+  XLSX.writeFile(workbook, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`);
 }

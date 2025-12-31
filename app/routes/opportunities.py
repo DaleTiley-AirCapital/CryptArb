@@ -55,6 +55,51 @@ def get_missed_opportunities(
         "count": len(opportunities)
     }
 
+def calculate_direction_stats(ticks, direction_filter=None):
+    if direction_filter:
+        filtered = [t for t in ticks if t.direction == direction_filter]
+    else:
+        filtered = ticks
+    
+    net_edges = [tick.net_edge_bps for tick in filtered if tick.net_edge_bps is not None]
+    
+    if not net_edges:
+        return {
+            "count": 0,
+            "stats": {"min_net_edge_pct": 0, "max_net_edge_pct": 0, "avg_net_edge_pct": 0, "median_net_edge_pct": 0},
+            "distribution": {},
+            "opportunities_per_threshold": {}
+        }
+    
+    buckets = {
+        "below_0.25%": len([e for e in net_edges if e < 25]),
+        "0.25%-0.50%": len([e for e in net_edges if 25 <= e < 50]),
+        "0.50%-0.75%": len([e for e in net_edges if 50 <= e < 75]),
+        "0.75%-1.00%": len([e for e in net_edges if 75 <= e < 100]),
+        "1.00%-1.25%": len([e for e in net_edges if 100 <= e < 125]),
+        "1.25%-1.50%": len([e for e in net_edges if 125 <= e < 150]),
+        "above_1.50%": len([e for e in net_edges if e >= 150]),
+    }
+    
+    return {
+        "count": len(filtered),
+        "stats": {
+            "min_net_edge_pct": min(net_edges) / 100 if net_edges else 0,
+            "max_net_edge_pct": max(net_edges) / 100 if net_edges else 0,
+            "avg_net_edge_pct": sum(net_edges) / len(net_edges) / 100 if net_edges else 0,
+            "median_net_edge_pct": sorted(net_edges)[len(net_edges)//2] / 100 if net_edges else 0,
+        },
+        "distribution": buckets,
+        "opportunities_per_threshold": {
+            "0.25%": len([e for e in net_edges if e >= 25]),
+            "0.50%": len([e for e in net_edges if e >= 50]),
+            "0.75%": len([e for e in net_edges if e >= 75]),
+            "1.00%": len([e for e in net_edges if e >= 100]),
+            "1.25%": len([e for e in net_edges if e >= 125]),
+            "1.50%": len([e for e in net_edges if e >= 150]),
+        }
+    }
+
 @router.get("/reports/net-edge-analysis")
 def get_net_edge_analysis(
     hours: int = Query(24, ge=1, le=168),
@@ -71,37 +116,58 @@ def get_net_edge_analysis(
     if not ticks:
         return {"message": "No tick data in timeframe. Start the bot to collect data.", "data": None}
     
-    net_edges = [tick.net_edge_bps for tick in ticks if tick.net_edge_bps is not None]
+    all_data = calculate_direction_stats(ticks)
+    b2l_data = calculate_direction_stats(ticks, "binance_to_luno")
+    l2b_data = calculate_direction_stats(ticks, "luno_to_binance")
     
-    if not net_edges:
+    if all_data["count"] == 0:
         return {"message": "No net edge data available", "data": None}
-    
-    buckets = {
-        "below_0.25%": len([e for e in net_edges if e < 25]),
-        "0.25%-0.50%": len([e for e in net_edges if 25 <= e < 50]),
-        "0.50%-0.75%": len([e for e in net_edges if 50 <= e < 75]),
-        "0.75%-1.00%": len([e for e in net_edges if 75 <= e < 100]),
-        "1.00%-1.25%": len([e for e in net_edges if 100 <= e < 125]),
-        "1.25%-1.50%": len([e for e in net_edges if 125 <= e < 150]),
-        "above_1.50%": len([e for e in net_edges if e >= 150]),
-    }
     
     return {
         "hours_analyzed": hours,
         "total_opportunities": len(ticks),
-        "stats": {
-            "min_net_edge_pct": min(net_edges) / 100 if net_edges else 0,
-            "max_net_edge_pct": max(net_edges) / 100 if net_edges else 0,
-            "avg_net_edge_pct": sum(net_edges) / len(net_edges) / 100 if net_edges else 0,
-            "median_net_edge_pct": sorted(net_edges)[len(net_edges)//2] / 100 if net_edges else 0,
-        },
-        "distribution": buckets,
-        "opportunities_per_threshold": {
-            "0.25%": len([e for e in net_edges if e >= 25]),
-            "0.50%": len([e for e in net_edges if e >= 50]),
-            "0.75%": len([e for e in net_edges if e >= 75]),
-            "1.00%": len([e for e in net_edges if e >= 100]),
-            "1.25%": len([e for e in net_edges if e >= 125]),
-            "1.50%": len([e for e in net_edges if e >= 150]),
+        "stats": all_data["stats"],
+        "distribution": all_data["distribution"],
+        "opportunities_per_threshold": all_data["opportunities_per_threshold"],
+        "by_direction": {
+            "binance_to_luno": b2l_data,
+            "luno_to_binance": l2b_data
         }
+    }
+
+@router.get("/reports/net-edge-raw")
+def get_net_edge_raw_data(
+    hours: int = Query(24, ge=1, le=168),
+    limit: int = Query(1000, ge=1, le=10000),
+    db: Session = Depends(get_db)
+):
+    from datetime import datetime, timedelta
+    from app.models import ArbTick
+    
+    cutoff = datetime.utcnow() - timedelta(hours=hours)
+    ticks = db.query(ArbTick).filter(
+        ArbTick.timestamp >= cutoff
+    ).order_by(ArbTick.timestamp.desc()).limit(limit).all()
+    
+    return {
+        "hours_analyzed": hours,
+        "count": len(ticks),
+        "ticks": [
+            {
+                "timestamp": tick.timestamp.isoformat() if tick.timestamp else None,
+                "direction": tick.direction,
+                "luno_bid": tick.luno_bid,
+                "luno_ask": tick.luno_ask,
+                "luno_last": tick.luno_last,
+                "binance_bid": tick.binance_bid,
+                "binance_ask": tick.binance_ask,
+                "binance_last": tick.binance_last,
+                "usd_zar_rate": tick.usd_zar_rate,
+                "spread_pct": tick.spread_pct,
+                "gross_edge_bps": tick.gross_edge_bps,
+                "net_edge_bps": tick.net_edge_bps,
+                "is_profitable": tick.is_profitable
+            }
+            for tick in ticks
+        ]
     }

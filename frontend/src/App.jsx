@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchStatus, fetchSummary, fetchTrades, fetchFloats, fetchConfig, updateConfig, fetchOpportunities, fetchMissedOpportunities, startBot, stopBot, resetPaperFloats, exportToCSV, fetchNetEdgeAnalysis } from './api'
+import { fetchStatus, fetchSummary, fetchTrades, fetchFloats, fetchConfig, updateConfig, fetchOpportunities, fetchMissedOpportunities, startBot, stopBot, resetPaperFloats, exportToCSV, fetchNetEdgeAnalysis, fetchNetEdgeRawData, exportToXLSX } from './api'
 
 function Toast({ message, type, onClose }) {
   useEffect(() => {
@@ -615,7 +615,66 @@ function formatUptime(seconds) {
   return `${secs}s`
 }
 
+function DirectionStats({ data, label, colorClass }) {
+  if (!data || data.count === 0) {
+    return (
+      <div className="text-center py-4 text-slate-400 text-sm">
+        No {label} data available
+      </div>
+    )
+  }
+
+  const { stats, distribution, opportunities_per_threshold, count } = data
+  const distributionValues = Object.values(distribution || {})
+  const maxBucketCount = distributionValues.length > 0 ? Math.max(...distributionValues) : 0
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-slate-700/50 rounded-lg p-2">
+          <div className="text-slate-400 text-xs">Min</div>
+          <div className={`text-sm font-mono ${colorClass}`}>{stats?.min_net_edge_pct?.toFixed(2) || 0}%</div>
+        </div>
+        <div className="bg-slate-700/50 rounded-lg p-2">
+          <div className="text-slate-400 text-xs">Max</div>
+          <div className={`text-sm font-mono ${colorClass}`}>{stats?.max_net_edge_pct?.toFixed(2) || 0}%</div>
+        </div>
+        <div className="bg-slate-700/50 rounded-lg p-2">
+          <div className="text-slate-400 text-xs">Avg</div>
+          <div className={`text-sm font-mono ${colorClass}`}>{stats?.avg_net_edge_pct?.toFixed(2) || 0}%</div>
+        </div>
+        <div className="bg-slate-700/50 rounded-lg p-2">
+          <div className="text-slate-400 text-xs">Count</div>
+          <div className={`text-sm font-mono ${colorClass}`}>{count}</div>
+        </div>
+      </div>
+
+      <div>
+        <div className="text-xs text-slate-400 mb-2">Distribution</div>
+        <div className="space-y-1">
+          {Object.entries(distribution || {}).map(([bucket, bucketCount]) => (
+            <div key={bucket} className="flex items-center gap-2">
+              <div className="w-20 text-xs text-slate-500 truncate">{bucket.replace('_', ' ')}</div>
+              <div className="flex-1 h-4 bg-slate-700 rounded overflow-hidden">
+                <div
+                  className={`h-full transition-all ${colorClass === 'text-blue-400' ? 'bg-blue-500' : 'bg-green-500'}`}
+                  style={{ width: maxBucketCount > 0 ? `${(bucketCount / maxBucketCount) * 100}%` : '0%' }}
+                />
+              </div>
+              <div className="w-8 text-right text-xs font-mono text-slate-300">{bucketCount}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
+  const [showRawData, setShowRawData] = useState(false)
+  const [rawData, setRawData] = useState(null)
+  const [loadingRaw, setLoadingRaw] = useState(false)
+
   const timeRanges = [
     { label: '1h', value: 1 },
     { label: '6h', value: 6 },
@@ -626,6 +685,34 @@ function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
     { label: '7d', value: 168 },
   ]
 
+  const loadRawData = async () => {
+    setLoadingRaw(true)
+    try {
+      const result = await fetchNetEdgeRawData(hours, 1000)
+      setRawData(result)
+    } catch (err) {
+      console.error('Error loading raw data:', err)
+    } finally {
+      setLoadingRaw(false)
+    }
+  }
+
+  const handleToggleRawData = async () => {
+    if (!showRawData && !rawData) {
+      await loadRawData()
+    }
+    setShowRawData(!showRawData)
+  }
+
+  const handleExportXLSX = async () => {
+    if (!rawData?.ticks?.length) {
+      await loadRawData()
+    }
+    if (rawData?.ticks?.length) {
+      await exportToXLSX(rawData.ticks, `net_edge_data_${hours}h.xlsx`)
+    }
+  }
+
   if (!data || data.message || !data.stats || !data.distribution || !data.opportunities_per_threshold) {
     return (
       <div className="text-center py-4 text-slate-400">
@@ -634,7 +721,9 @@ function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
     )
   }
 
-  const { stats, distribution, opportunities_per_threshold, total_opportunities } = data
+  const { stats, distribution, opportunities_per_threshold, total_opportunities, by_direction } = data
+  const b2l = by_direction?.binance_to_luno
+  const l2b = by_direction?.luno_to_binance
 
   if (!stats || !distribution || !opportunities_per_threshold) {
     return (
@@ -643,9 +732,6 @@ function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
       </div>
     )
   }
-
-  const distributionValues = Object.values(distribution)
-  const maxBucketCount = distributionValues.length > 0 ? Math.max(...distributionValues) : 0
 
   const thresholdLabels = {
     "0.25%": 25,
@@ -658,56 +744,78 @@ function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-2">
-        {timeRanges.map((range) => (
-          <button
-            key={range.value}
-            onClick={() => onHoursChange(range.value)}
-            className={`px-3 py-1.5 text-sm rounded transition ${
-              hours === range.value
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-            }`}
-          >
-            {range.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-slate-700/50 rounded-lg p-3">
-          <div className="text-slate-400 text-xs">Min Net Edge</div>
-          <div className="text-lg font-mono text-blue-400">{stats.min_net_edge_pct?.toFixed(2)}%</div>
-        </div>
-        <div className="bg-slate-700/50 rounded-lg p-3">
-          <div className="text-slate-400 text-xs">Max Net Edge</div>
-          <div className="text-lg font-mono text-green-400">{stats.max_net_edge_pct?.toFixed(2)}%</div>
-        </div>
-        <div className="bg-slate-700/50 rounded-lg p-3">
-          <div className="text-slate-400 text-xs">Average</div>
-          <div className="text-lg font-mono text-blue-400">{stats.avg_net_edge_pct?.toFixed(2)}%</div>
-        </div>
-        <div className="bg-slate-700/50 rounded-lg p-3">
-          <div className="text-slate-400 text-xs">Median</div>
-          <div className="text-lg font-mono text-blue-400">{stats.median_net_edge_pct?.toFixed(2)}%</div>
-        </div>
-      </div>
-
-      <div>
-        <h4 className="text-sm text-slate-400 mb-3">Distribution ({total_opportunities} opportunities)</h4>
-        <div className="space-y-2">
-          {Object.entries(distribution).map(([bucket, count]) => (
-            <div key={bucket} className="flex items-center gap-3">
-              <div className="w-24 text-xs text-slate-400">{bucket.replace('_', ' ')}</div>
-              <div className="flex-1 h-6 bg-slate-700 rounded overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-blue-600 to-green-500 transition-all"
-                  style={{ width: maxBucketCount > 0 ? `${(count / maxBucketCount) * 100}%` : '0%' }}
-                />
-              </div>
-              <div className="w-12 text-right text-sm font-mono text-slate-300">{count}</div>
-            </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {timeRanges.map((range) => (
+            <button
+              key={range.value}
+              onClick={() => onHoursChange(range.value)}
+              className={`px-3 py-1.5 text-sm rounded transition ${
+                hours === range.value
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              {range.label}
+            </button>
           ))}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleToggleRawData}
+            className="px-3 py-1.5 text-sm bg-slate-700 text-slate-300 rounded hover:bg-slate-600 transition"
+          >
+            {loadingRaw ? 'Loading...' : showRawData ? 'Hide Raw Data' : 'Show Raw Data'}
+          </button>
+          <button
+            onClick={handleExportXLSX}
+            className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-500 transition flex items-center gap-1"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export .xlsx
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-slate-800/50 rounded-lg p-4 border border-blue-500/30">
+          <h4 className="text-sm font-semibold text-blue-400 mb-3 flex items-center gap-2">
+            <span className="text-lg">←</span> Binance → Luno (B&gt;L)
+            <span className="text-slate-400 font-normal ml-auto">{b2l?.count || 0} ticks</span>
+          </h4>
+          <DirectionStats data={b2l} label="B>L" colorClass="text-blue-400" />
+        </div>
+
+        <div className="bg-slate-800/50 rounded-lg p-4 border border-green-500/30">
+          <h4 className="text-sm font-semibold text-green-400 mb-3 flex items-center gap-2">
+            Luno → Binance (L&gt;B) <span className="text-lg">→</span>
+            <span className="text-slate-400 font-normal ml-auto">{l2b?.count || 0} ticks</span>
+          </h4>
+          <DirectionStats data={l2b} label="L>B" colorClass="text-green-400" />
+        </div>
+      </div>
+
+      <div className="bg-slate-800/50 rounded-lg p-4">
+        <h4 className="text-sm text-slate-400 mb-3">Combined Stats ({total_opportunities} total)</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-slate-700/50 rounded-lg p-3">
+            <div className="text-slate-400 text-xs">Min Net Edge</div>
+            <div className="text-lg font-mono text-blue-400">{stats.min_net_edge_pct?.toFixed(2)}%</div>
+          </div>
+          <div className="bg-slate-700/50 rounded-lg p-3">
+            <div className="text-slate-400 text-xs">Max Net Edge</div>
+            <div className="text-lg font-mono text-green-400">{stats.max_net_edge_pct?.toFixed(2)}%</div>
+          </div>
+          <div className="bg-slate-700/50 rounded-lg p-3">
+            <div className="text-slate-400 text-xs">Average</div>
+            <div className="text-lg font-mono text-blue-400">{stats.avg_net_edge_pct?.toFixed(2)}%</div>
+          </div>
+          <div className="bg-slate-700/50 rounded-lg p-3">
+            <div className="text-slate-400 text-xs">Median</div>
+            <div className="text-lg font-mono text-blue-400">{stats.median_net_edge_pct?.toFixed(2)}%</div>
+          </div>
         </div>
       </div>
 
@@ -751,6 +859,51 @@ function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
           Shows how many opportunities you would have captured at each threshold level.
         </p>
       </div>
+
+      {showRawData && rawData?.ticks && (
+        <div>
+          <h4 className="text-sm text-slate-400 mb-3">Raw Tick Data ({rawData.count} records)</h4>
+          <div className="overflow-x-auto max-h-96 overflow-y-auto border border-slate-700 rounded-lg">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-800 sticky top-0">
+                <tr className="border-b border-slate-700">
+                  <th className="text-left p-2 text-slate-400">Timestamp</th>
+                  <th className="text-left p-2 text-slate-400">Direction</th>
+                  <th className="text-right p-2 text-slate-400">Luno (ZAR)</th>
+                  <th className="text-right p-2 text-slate-400">Binance (USD)</th>
+                  <th className="text-right p-2 text-slate-400">USD/ZAR</th>
+                  <th className="text-right p-2 text-slate-400">Gross %</th>
+                  <th className="text-right p-2 text-slate-400">Net %</th>
+                  <th className="text-center p-2 text-slate-400">Profitable</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rawData.ticks.slice(0, 500).map((tick, idx) => (
+                  <tr key={idx} className="border-b border-slate-800 hover:bg-slate-800/50">
+                    <td className="p-2 font-mono text-slate-300">{tick.timestamp?.split('T')[1]?.split('.')[0] || '-'}</td>
+                    <td className={`p-2 ${tick.direction === 'binance_to_luno' ? 'text-blue-400' : 'text-green-400'}`}>
+                      {tick.direction === 'binance_to_luno' ? 'B→L' : 'L→B'}
+                    </td>
+                    <td className="p-2 text-right font-mono text-slate-300">R{tick.luno_last?.toFixed(0)}</td>
+                    <td className="p-2 text-right font-mono text-slate-300">${tick.binance_last?.toFixed(2)}</td>
+                    <td className="p-2 text-right font-mono text-slate-300">{tick.usd_zar_rate?.toFixed(2)}</td>
+                    <td className="p-2 text-right font-mono text-slate-300">{(tick.gross_edge_bps / 100)?.toFixed(2)}%</td>
+                    <td className={`p-2 text-right font-mono ${tick.net_edge_bps >= 100 ? 'text-green-400' : tick.net_edge_bps >= 50 ? 'text-amber-400' : 'text-slate-400'}`}>
+                      {(tick.net_edge_bps / 100)?.toFixed(2)}%
+                    </td>
+                    <td className="p-2 text-center">
+                      {tick.is_profitable ? <span className="text-green-400">✓</span> : <span className="text-slate-500">-</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {rawData.ticks.length > 500 && (
+            <p className="mt-2 text-xs text-slate-500">Showing 500 of {rawData.count} records. Export to see all data.</p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
