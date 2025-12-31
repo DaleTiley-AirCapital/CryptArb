@@ -166,6 +166,9 @@ The bot maintains a rolling buffer of the last 6 price checks in memory for real
 **Data retention:** ~170k ticks/day at 500ms intervals. Consider archival strategy for long-term storage.
 
 ## Recent Changes
+- December 31, 2025: Split Net Edge Analysis by direction: B>L (left panel) and L>B (right panel) with per-direction stats
+- December 31, 2025: Added raw tick data table with toggle button and Excel (.xlsx) export functionality
+- December 31, 2025: Added /reports/net-edge-raw API endpoint for fetching raw tick data
 - December 31, 2025: Added accumulated profit tracking in stable currency (ZAR/USD) - profits now accumulate in paper_floats
 - December 31, 2025: Added auto-rebalance feature: when stuck in one direction for 10+ consecutive opportunities, accepts lower-profit reverse trades (20 bps threshold)
 - December 31, 2025: Added inventory tracking: consecutive_same_direction, rebalance_mode, rebalance_trades_executed
