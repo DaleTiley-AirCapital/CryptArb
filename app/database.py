@@ -26,7 +26,7 @@ def get_db():
         db.close()
 
 def clear_all_tables():
-    from app.models import Trade, FloatBalance, PnLRecord, Opportunity, ConfigHistory
+    from app.models import Trade, FloatBalance, PnLRecord, Opportunity, ConfigHistory, ArbTick
     db = SessionLocal()
     try:
         db.query(Trade).delete()
@@ -34,6 +34,7 @@ def clear_all_tables():
         db.query(PnLRecord).delete()
         db.query(Opportunity).delete()
         db.query(ConfigHistory).delete()
+        db.query(ArbTick).delete()
         db.commit()
         logger.info("All database tables cleared successfully")
     except Exception as e:
@@ -62,7 +63,7 @@ def run_migrations():
         db.close()
 
 def init_db():
-    from app.models import trade, float_balance, pnl
+    from app.models import trade, float_balance, pnl, arb_tick
     Base.metadata.create_all(bind=engine)
     
     # Run migrations for new columns
