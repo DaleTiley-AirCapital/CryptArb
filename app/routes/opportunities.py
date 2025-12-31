@@ -61,16 +61,17 @@ def get_net_edge_analysis(
     db: Session = Depends(get_db)
 ):
     from datetime import datetime, timedelta
+    from app.models import ArbTick
     
     cutoff = datetime.utcnow() - timedelta(hours=hours)
-    opportunities = db.query(Opportunity).filter(
-        Opportunity.timestamp >= cutoff
+    ticks = db.query(ArbTick).filter(
+        ArbTick.timestamp >= cutoff
     ).all()
     
-    if not opportunities:
-        return {"message": "No opportunities in timeframe", "data": None}
+    if not ticks:
+        return {"message": "No tick data in timeframe. Start the bot to collect data.", "data": None}
     
-    net_edges = [opp.net_edge_bps for opp in opportunities if opp.net_edge_bps is not None]
+    net_edges = [tick.net_edge_bps for tick in ticks if tick.net_edge_bps is not None]
     
     if not net_edges:
         return {"message": "No net edge data available", "data": None}
@@ -87,7 +88,7 @@ def get_net_edge_analysis(
     
     return {
         "hours_analyzed": hours,
-        "total_opportunities": len(opportunities),
+        "total_opportunities": len(ticks),
         "stats": {
             "min_net_edge_pct": min(net_edges) / 100 if net_edges else 0,
             "max_net_edge_pct": max(net_edges) / 100 if net_edges else 0,
