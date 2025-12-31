@@ -148,6 +148,7 @@ The paper mode simulates real-world trading with proper float tracking:
 - Reset button to restart simulation
 
 ## Recent Changes
+- December 31, 2025: Added Net Edge Analysis section with distribution stats and threshold impact table
 - December 31, 2025: Added Missed Opportunities section with amber/red styling
 - December 31, 2025: Made all data tables scrollable with sticky headers (max-height 384px)
 - December 31, 2025: Added CSV export functionality for trades, opportunities, and missed opportunities

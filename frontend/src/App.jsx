@@ -521,17 +521,25 @@ function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
     { label: '7d', value: 168 },
   ]
 
-  if (!data || data.message || !data.distribution) {
+  if (!data || data.message || !data.stats || !data.distribution || !data.opportunities_per_threshold) {
     return (
       <div className="text-center py-4 text-slate-400">
-        {data?.message || 'No analysis data available'}
+        {data?.message || 'No analysis data available. Start the bot to collect data.'}
       </div>
     )
   }
 
   const { stats, distribution, opportunities_per_threshold, total_opportunities } = data
 
-  const distributionValues = Object.values(distribution || {})
+  if (!stats || !distribution || !opportunities_per_threshold) {
+    return (
+      <div className="text-center py-4 text-slate-400">
+        Incomplete analysis data. Please wait for more data.
+      </div>
+    )
+  }
+
+  const distributionValues = Object.values(distribution)
   const maxBucketCount = distributionValues.length > 0 ? Math.max(...distributionValues) : 0
 
   const thresholdLabels = {
