@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchStatus, fetchSummary, fetchTrades, fetchFloats, fetchConfig, updateConfig, fetchOpportunities, startBot, stopBot, resetPaperFloats } from './api'
+import { fetchStatus, fetchSummary, fetchTrades, fetchFloats, fetchConfig, updateConfig, fetchOpportunities, fetchMissedOpportunities, startBot, stopBot, resetPaperFloats, exportToCSV } from './api'
 
 function Toast({ message, type, onClose }) {
   useEffect(() => {
@@ -251,9 +251,9 @@ function TradesTable({ trades, usdZarRate = 17 }) {
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto max-h-96 overflow-y-auto">
       <table className="w-full text-sm">
-        <thead>
+        <thead className="sticky top-0 bg-slate-900">
           <tr className="border-b border-slate-700">
             <th className="text-left p-2">Time</th>
             <th className="text-left p-2">Direction</th>
@@ -308,7 +308,7 @@ function OpportunitiesTable({ opportunities }) {
   }
 
   return (
-    <div className="overflow-x-auto max-h-64">
+    <div className="overflow-x-auto max-h-96 overflow-y-auto">
       <table className="w-full text-sm">
         <thead className="sticky top-0 bg-slate-900">
           <tr className="border-b border-slate-700">
@@ -348,6 +348,63 @@ function OpportunitiesTable({ opportunities }) {
         </tbody>
       </table>
     </div>
+  )
+}
+
+function MissedOpportunitiesTable({ opportunities }) {
+  if (!opportunities || opportunities.length === 0) {
+    return (
+      <div className="text-center py-4 text-slate-400">
+        No missed opportunities yet.
+      </div>
+    )
+  }
+
+  return (
+    <div className="overflow-x-auto max-h-96 overflow-y-auto">
+      <table className="w-full text-sm">
+        <thead className="sticky top-0 bg-slate-900">
+          <tr className="border-b border-amber-500/30">
+            <th className="text-left p-2">Time</th>
+            <th className="text-left p-2">Direction</th>
+            <th className="text-right p-2">Gross %</th>
+            <th className="text-right p-2">Net %</th>
+            <th className="text-left p-2">Reason Skipped</th>
+          </tr>
+        </thead>
+        <tbody>
+          {opportunities.slice(0, 50).map((opp) => (
+            <tr key={opp.id} className="border-b border-slate-800 hover:bg-amber-500/10">
+              <td className="p-2 text-xs text-amber-200">{new Date(opp.timestamp).toLocaleTimeString()}</td>
+              <td className="p-2">
+                <span className={`px-1 py-0.5 rounded text-xs ${
+                  opp.direction === 'luno_to_binance' 
+                    ? 'bg-amber-500/20 text-amber-400' 
+                    : 'bg-red-500/20 text-red-400'
+                }`}>
+                  {opp.direction === 'luno_to_binance' ? 'L→B' : 'B→L'}
+                </span>
+              </td>
+              <td className="p-2 text-right font-mono text-xs text-amber-300">{(opp.gross_edge_bps / 100)?.toFixed(2)}%</td>
+              <td className={`p-2 text-right font-mono text-xs ${opp.net_edge_bps >= 0 ? 'text-amber-400' : 'text-red-400'}`}>
+                {(opp.net_edge_bps / 100)?.toFixed(2)}%
+              </td>
+              <td className="p-2 text-xs text-red-400">
+                {opp.reason_skipped || 'Unknown'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function DownloadIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+    </svg>
   )
 }
 
@@ -460,6 +517,7 @@ function App() {
   const [floats, setFloats] = useState(null)
   const [config, setConfig] = useState(null)
   const [opportunities, setOpportunities] = useState([])
+  const [missedOpportunities, setMissedOpportunities] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
@@ -494,16 +552,18 @@ function App() {
 
   const loadSlowData = async () => {
     try {
-      const [summaryData, tradesData, floatsData, configData] = await Promise.all([
+      const [summaryData, tradesData, floatsData, configData, missedData] = await Promise.all([
         fetchSummary(),
         fetchTrades(20),
         fetchFloats(),
-        fetchConfig()
+        fetchConfig(),
+        fetchMissedOpportunities(200)
       ])
       setSummary(summaryData)
       setTrades(tradesData.trades || [])
       setFloats(floatsData.floats)
       setConfig(configData)
+      setMissedOpportunities(missedData.opportunities || [])
     } catch (err) {
       console.error('Error loading slow data:', err)
     }
@@ -689,7 +749,16 @@ function App() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-2 bg-slate-800/30 rounded-lg p-6 border border-slate-700">
-            <h2 className="text-xl font-semibold mb-4">Recent Trades</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Recent Trades</h2>
+              <button
+                onClick={() => trades.length > 0 && exportToCSV(trades, 'recent_trades.csv')}
+                disabled={trades.length === 0}
+                className="px-3 py-1.5 text-sm bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 disabled:cursor-not-allowed rounded flex items-center gap-1"
+              >
+                <DownloadIcon /> Export
+              </button>
+            </div>
             <TradesTable trades={trades} usdZarRate={usdZarRate} />
           </div>
           <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
@@ -762,9 +831,32 @@ function App() {
           </div>
 
           <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
-            <h2 className="text-xl font-semibold mb-4">Recent Opportunities</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Recent Opportunities</h2>
+              <button
+                onClick={() => opportunities.length > 0 && exportToCSV(opportunities, 'recent_opportunities.csv')}
+                disabled={opportunities.length === 0}
+                className="px-3 py-1.5 text-sm bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 disabled:cursor-not-allowed rounded flex items-center gap-1"
+              >
+                <DownloadIcon /> Export
+              </button>
+            </div>
             <OpportunitiesTable opportunities={opportunities} />
           </div>
+        </div>
+
+        <div className="bg-slate-800/30 rounded-lg p-6 border border-amber-500/30 mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-amber-400">Missed Opportunities</h2>
+            <button
+              onClick={() => missedOpportunities.length > 0 && exportToCSV(missedOpportunities, 'missed_opportunities.csv')}
+              disabled={missedOpportunities.length === 0}
+              className="px-3 py-1.5 text-sm bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 disabled:cursor-not-allowed rounded flex items-center gap-1"
+            >
+              <DownloadIcon /> Export
+            </button>
+          </div>
+          <MissedOpportunitiesTable opportunities={missedOpportunities} />
         </div>
 
         <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700 mb-8">

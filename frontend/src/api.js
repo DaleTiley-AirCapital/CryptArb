@@ -58,3 +58,23 @@ export async function resetPaperFloats() {
   const res = await fetch(`${API_BASE}/reset-paper-floats`, { method: 'POST' });
   return res.json();
 }
+
+export async function fetchMissedOpportunities(limit = 200) {
+  const res = await fetch(`${API_BASE}/reports/missed-opportunities?limit=${limit}`);
+  return res.json();
+}
+
+export function exportToCSV(data, filename) {
+  const headers = Object.keys(data[0] || {});
+  const csvContent = [
+    headers.join(','),
+    ...data.map(row => headers.map(h => JSON.stringify(row[h] ?? '')).join(','))
+  ].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
