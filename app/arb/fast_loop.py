@@ -58,6 +58,16 @@ class FastArbitrageLoop:
             "trades_executed": 0,
             "avg_check_time_ms": 0,
             "ticks_persisted": 0,
+            "skipped_insufficient_balance": 0,
+            "skipped_below_threshold": 0,
+        }
+        self._inventory_status = {
+            "can_trade_luno_to_binance": False,
+            "can_trade_binance_to_luno": False,
+            "block_reason_l2b": None,
+            "block_reason_b2l": None,
+            "consecutive_same_direction": 0,
+            "last_profitable_direction": None,
         }
         self._paper_floats = {
             "binance_btc": 0.0,
@@ -577,6 +587,13 @@ class FastArbitrageLoop:
             
             if spread_info["is_profitable"]:
                 self._stats["opportunities_found"] += 1
+                direction = spread_info["direction"]
+                
+                if self._inventory_status["last_profitable_direction"] == direction:
+                    self._inventory_status["consecutive_same_direction"] += 1
+                else:
+                    self._inventory_status["consecutive_same_direction"] = 1
+                self._inventory_status["last_profitable_direction"] = direction
                 
                 if self._last_trade_time:
                     time_since_trade = (datetime.utcnow() - self._last_trade_time).total_seconds()
@@ -584,13 +601,13 @@ class FastArbitrageLoop:
                         return
                 
                 if config.is_paper_mode():
-                    can_trade, reason = self.can_execute_paper_trade(spread_info["direction"])
+                    can_trade, reason = self.can_execute_paper_trade(direction)
                     if not can_trade:
+                        self._stats["skipped_insufficient_balance"] += 1
                         self.log_opportunity(spread_info, was_executed=False, reason_skipped=reason)
                         return
-                
                 logger.info(
-                    f"OPPORTUNITY! Direction: {spread_info['direction']}, "
+                    f"OPPORTUNITY! Direction: {direction}, "
                     f"Net Edge: {spread_info['net_edge_bps']:.1f}bps ({spread_info['net_edge_bps']/100:.2f}%)"
                 )
                 
@@ -689,12 +706,35 @@ class FastArbitrageLoop:
         self._stats["opportunities_found"] = 0
         logger.info("[PAPER] Floats reset - will re-initialize on next price check")
     
+    def update_inventory_status(self):
+        if config.is_paper_mode():
+            can_l2b, reason_l2b = self.can_execute_paper_trade("luno_to_binance")
+            can_b2l, reason_b2l = self.can_execute_paper_trade("binance_to_luno")
+            self._inventory_status["can_trade_luno_to_binance"] = can_l2b
+            self._inventory_status["can_trade_binance_to_luno"] = can_b2l
+            self._inventory_status["block_reason_l2b"] = reason_l2b if not can_l2b else None
+            self._inventory_status["block_reason_b2l"] = reason_b2l if not can_b2l else None
+    
     def get_status(self) -> dict:
         uptime = None
         if self.start_time and self.running:
             uptime = (datetime.utcnow() - self.start_time).total_seconds()
         
         price_stats = price_service.get_stats()
+        
+        if config.is_paper_mode():
+            self.update_inventory_status()
+        
+        tradeable_amounts = None
+        buffers = None
+        if config.is_paper_mode() and self._paper_floats_initialized:
+            buffers = self.get_safety_buffers()
+            tradeable_amounts = {
+                "luno_zar": max(0, self._paper_floats["luno_zar"] - buffers["luno_zar"]),
+                "luno_btc": max(0, self._paper_floats["luno_btc"] - buffers["luno_btc"]),
+                "binance_btc": max(0, self._paper_floats["binance_btc"] - buffers["binance_btc"]),
+                "binance_usdt": max(0, self._paper_floats["binance_usdt"] - buffers["binance_usdt"]),
+            }
         
         return {
             "running": self.running,
@@ -709,6 +749,9 @@ class FastArbitrageLoop:
             "stats": self._stats,
             "price_service": price_stats,
             "paper_floats": self._paper_floats if config.is_paper_mode() else None,
+            "tradeable_amounts": tradeable_amounts,
+            "safety_buffers": buffers,
+            "inventory_status": self._inventory_status if config.is_paper_mode() else None,
             "recent_ticks": self.get_recent_ticks(),
         }
 
