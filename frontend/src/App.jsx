@@ -278,8 +278,8 @@ function TradesTable({ trades, usdZarRate = 17 }) {
               </td>
               <td className="p-2 text-right font-mono">{trade.btc_amount?.toFixed(6)}</td>
               <td className="p-2 text-right font-mono">{trade.spread_percent?.toFixed(2)}%</td>
-              <td className={`p-2 text-right font-mono ${trade.profit_usd >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                R {(trade.profit_usd * usdZarRate)?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+              <td className={`p-2 text-right font-mono ${(trade.profit_zar ?? trade.profit_usd) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                R {(trade.profit_zar ?? (trade.profit_usd * usdZarRate))?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </td>
               <td className="p-2">
                 <span className={`px-2 py-1 rounded text-xs ${
@@ -698,10 +698,10 @@ function App() {
           </div>
         </div>
 
-        {status?.mode === 'paper' && status?.paper_floats && (
+        {status?.bot?.mode === 'paper' && status?.bot?.paper_floats && (
           <div className="grid grid-cols-1 gap-6 mb-8">
             <SimulatedBalancesSection
-              paperFloats={status.paper_floats}
+              paperFloats={status?.bot?.paper_floats}
               onReset={handleResetFloats}
               usdZarRate={usdZarRate}
             />

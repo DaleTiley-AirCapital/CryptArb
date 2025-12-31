@@ -246,6 +246,7 @@ class FastArbitrageLoop:
                     sell_price=spread_info["sell_price"],
                     spread_percent=spread_info["spread_percent"],
                     profit_usd=profit_usd,
+                    profit_zar=profit_zar,
                     buy_exchange=spread_info["buy_exchange"],
                     sell_exchange=spread_info["sell_exchange"],
                     status="paper"
@@ -291,6 +292,9 @@ class FastArbitrageLoop:
         profit_usd -= btc_amount * spread_info["buy_price"] * luno_fee
         profit_usd -= btc_amount * spread_info["sell_price"] * binance_fee
         
+        usd_zar_rate = spread_info.get("usd_zar_rate", 17.0)
+        profit_zar = profit_usd * usd_zar_rate
+        
         db = SessionLocal()
         try:
             trade = Trade(
@@ -300,6 +304,7 @@ class FastArbitrageLoop:
                 sell_price=spread_info["sell_price"],
                 spread_percent=spread_info["spread_percent"],
                 profit_usd=profit_usd,
+                profit_zar=profit_zar,
                 buy_exchange=spread_info["buy_exchange"],
                 sell_exchange=spread_info["sell_exchange"],
                 status="completed"

@@ -18,6 +18,7 @@ class Trade(Base):
     sell_price = Column(Float, nullable=False)
     spread_percent = Column(Float, nullable=False)
     profit_usd = Column(Float, nullable=False)
+    profit_zar = Column(Float, nullable=True)
     buy_exchange = Column(String, nullable=False)
     sell_exchange = Column(String, nullable=False)
     status = Column(String, default="completed")
@@ -32,6 +33,7 @@ class Trade(Base):
             "sell_price": self.sell_price,
             "spread_percent": self.spread_percent,
             "profit_usd": self.profit_usd,
+            "profit_zar": self.profit_zar,
             "buy_exchange": self.buy_exchange,
             "sell_exchange": self.sell_exchange,
             "status": self.status
