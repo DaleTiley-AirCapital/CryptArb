@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.config import config
 from app.database import get_db
 from app.models import ConfigHistory
+from app.arb.fast_loop import fast_arb_loop
 
 router = APIRouter()
 
@@ -78,3 +79,8 @@ async def update_config(update: ConfigUpdate, db: Session = Depends(get_db)):
         db.commit()
     
     return {"success": True, "config": config.to_dict()}
+
+@router.post("/reset-paper-floats")
+async def reset_paper_floats():
+    fast_arb_loop.reset_paper_floats()
+    return {"success": True, "message": "Paper floats reset successfully"}

@@ -15,7 +15,7 @@ class Config:
     MODE: str = os.environ.get("MODE", "paper")
     
     SPREAD_THRESHOLD: float = float(os.environ.get("SPREAD_THRESHOLD", "0.5"))
-    MIN_NET_EDGE_BPS: float = float(os.environ.get("MIN_NET_EDGE_BPS", "40"))
+    MIN_NET_EDGE_BPS: float = float(os.environ.get("MIN_NET_EDGE_BPS", "100"))
     MAX_TRADE_SIZE_BTC: float = float(os.environ.get("MAX_TRADE_SIZE_BTC", "0.01"))
     MIN_TRADE_SIZE_BTC: float = float(os.environ.get("MIN_TRADE_SIZE_BTC", "0.0001"))
     MAX_TRADE_ZAR: float = float(os.environ.get("MAX_TRADE_ZAR", "5000"))

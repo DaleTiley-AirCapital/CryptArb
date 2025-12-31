@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchStatus, fetchSummary, fetchTrades, fetchFloats, fetchConfig, updateConfig, fetchOpportunities, startBot, stopBot } from './api'
+import { fetchStatus, fetchSummary, fetchTrades, fetchFloats, fetchConfig, updateConfig, fetchOpportunities, startBot, stopBot, resetPaperFloats } from './api'
 
 function Toast({ message, type, onClose }) {
   useEffect(() => {
@@ -383,6 +383,57 @@ function FloatsDisplay({ floats }) {
   )
 }
 
+function PaperFloatsDisplay({ paperFloats, onReset, usdZarRate }) {
+  if (!paperFloats) return null
+
+  const lunoZarValue = paperFloats.luno_zar + (paperFloats.luno_btc * usdZarRate * 100000)
+  const binanceZarValue = (paperFloats.binance_usdt * usdZarRate) + (paperFloats.binance_btc * usdZarRate * 100000)
+
+  return (
+    <div className="mt-4 pt-4 border-t border-slate-700">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="text-sm font-semibold text-amber-400">Paper Trading Floats (Simulated)</h3>
+        <button
+          onClick={onReset}
+          className="px-2 py-1 text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded"
+        >
+          Reset Floats
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="bg-slate-800/50 rounded p-3 border border-amber-500/30">
+          <div className="text-slate-400 text-xs mb-2">Luno (Simulated)</div>
+          <div className="flex justify-between">
+            <span>ZAR</span>
+            <span className="font-mono">R {paperFloats.luno_zar?.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>BTC</span>
+            <span className="font-mono">{paperFloats.luno_btc?.toFixed(6)}</span>
+          </div>
+        </div>
+        <div className="bg-slate-800/50 rounded p-3 border border-amber-500/30">
+          <div className="text-slate-400 text-xs mb-2">Binance (Simulated)</div>
+          <div className="flex justify-between">
+            <span>USDT</span>
+            <span className="font-mono">${paperFloats.binance_usdt?.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>BTC</span>
+            <span className="font-mono">{paperFloats.binance_btc?.toFixed(6)}</span>
+          </div>
+        </div>
+      </div>
+      {paperFloats.last_direction && (
+        <div className="mt-2 text-xs text-slate-400">
+          Last trade direction: <span className="text-slate-300">{paperFloats.last_direction === 'binance_to_luno' ? 'Binance → Luno' : 'Luno → Binance'}</span>
+          <span className="ml-2 text-amber-400">(Waiting for reversal trade)</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function formatUptime(seconds) {
   if (!seconds) return 'N/A'
   const hours = Math.floor(seconds / 3600)
@@ -498,6 +549,17 @@ function App() {
   const handleSettingsSave = async () => {
     await loadFastData()
     await loadSlowData()
+  }
+
+  const handleResetFloats = async () => {
+    try {
+      await resetPaperFloats()
+      showToast('Paper floats reset successfully', 'success')
+      await loadFastData()
+    } catch (err) {
+      showToast('Failed to reset floats', 'error')
+      console.error('Error resetting floats:', err)
+    }
   }
 
   if (loading) {
@@ -624,6 +686,13 @@ function App() {
           <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
             <h2 className="text-xl font-semibold mb-4">Exchange Balances</h2>
             <FloatsDisplay floats={floats} />
+            {status?.mode === 'paper' && status?.paper_floats && (
+              <PaperFloatsDisplay 
+                paperFloats={status.paper_floats} 
+                onReset={handleResetFloats}
+                usdZarRate={usdZarRate}
+              />
+            )}
           </div>
         </div>
 

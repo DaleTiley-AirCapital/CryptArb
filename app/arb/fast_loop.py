@@ -33,6 +33,14 @@ class FastArbitrageLoop:
             "trades_executed": 0,
             "avg_check_time_ms": 0,
         }
+        self._paper_floats = {
+            "binance_btc": 0.0,
+            "binance_usdt": 0.0,
+            "luno_btc": 0.0,
+            "luno_zar": 0.0,
+            "last_direction": None,
+        }
+        self._paper_floats_initialized = False
     
     def get_setting(self, key: str, default=None):
         return config.get(key) if config.get(key) is not None else getattr(config, key, default)
@@ -136,16 +144,98 @@ class FastArbitrageLoop:
         finally:
             db.close()
     
+    def initialize_paper_floats(self, luno_zar_price: float):
+        if self._paper_floats_initialized:
+            return
+        max_trade_zar = self.get_setting("MAX_TRADE_ZAR", 5000)
+        usd_zar_rate = self.get_setting("USD_ZAR_RATE", 17.0)
+        self._paper_floats["luno_zar"] = max_trade_zar
+        self._paper_floats["luno_btc"] = 0.0
+        btc_value = max_trade_zar / luno_zar_price if luno_zar_price > 0 else 0.0
+        self._paper_floats["binance_btc"] = btc_value
+        self._paper_floats["binance_usdt"] = 0.0
+        self._paper_floats["last_direction"] = None
+        self._paper_floats_initialized = True
+        logger.info(f"[PAPER] Initialized floats: Luno ZAR={max_trade_zar:.2f}, Binance BTC={btc_value:.8f} (≈R{max_trade_zar:.2f})")
+
+    def can_execute_paper_trade(self, direction: str) -> tuple[bool, str]:
+        if direction == "luno_to_binance":
+            if self._paper_floats["binance_btc"] <= 0:
+                return False, "No BTC on Binance to sell"
+            if self._paper_floats["luno_zar"] <= 0:
+                return False, "No ZAR on Luno to buy"
+        else:
+            if self._paper_floats["luno_btc"] <= 0:
+                return False, "No BTC on Luno to sell"
+            if self._paper_floats["binance_usdt"] <= 0:
+                return False, "No USDT on Binance to buy"
+        return True, ""
+
+    def calculate_trade_size(self, spread_info: dict, direction: str) -> tuple[float, float]:
+        max_trade_zar = self.get_setting("MAX_TRADE_ZAR", 5000)
+        max_trade_btc = self.get_setting("MAX_TRADE_SIZE_BTC", 0.01)
+        luno_zar_price = spread_info.get("luno_zar", 0)
+        binance_usd = spread_info.get("binance_usd", 0)
+        usd_zar_rate = spread_info.get("usd_zar_rate", 17.0)
+        
+        if luno_zar_price <= 0:
+            return 0.0, 0.0
+        
+        btc_for_max_zar = max_trade_zar / luno_zar_price
+        btc_amount = min(btc_for_max_zar, max_trade_btc)
+        
+        if config.is_paper_mode():
+            if direction == "luno_to_binance":
+                available_btc = self._paper_floats["binance_btc"]
+                available_zar = self._paper_floats["luno_zar"]
+                max_btc_from_zar = available_zar / luno_zar_price if luno_zar_price > 0 else 0
+                btc_amount = min(btc_amount, available_btc, max_btc_from_zar)
+            else:
+                available_btc = self._paper_floats["luno_btc"]
+                available_usdt = self._paper_floats["binance_usdt"]
+                max_btc_from_usdt = available_usdt / binance_usd if binance_usd > 0 else 0
+                btc_amount = min(btc_amount, available_btc, max_btc_from_usdt)
+        
+        trade_size_zar = btc_amount * luno_zar_price
+        return btc_amount, trade_size_zar
+
     async def execute_hedged_trade_parallel(self, spread_info: dict, btc_amount: float) -> Optional[Trade]:
         is_paper = config.is_paper_mode()
         luno_fee = self.get_setting("LUNO_TRADING_FEE", 0.001)
         binance_fee = self.get_setting("BINANCE_TRADING_FEE", 0.001)
         
         if is_paper:
-            logger.info(f"[PAPER MODE] Simulated trade: {spread_info['direction']} for {btc_amount} BTC")
+            direction = spread_info["direction"]
+            can_trade, reason = self.can_execute_paper_trade(direction)
+            if not can_trade:
+                logger.info(f"[PAPER] Cannot execute {direction}: {reason}")
+                return None
             
-            profit_usd = btc_amount * abs(spread_info["binance_usd"] - spread_info["luno_usd"])
-            profit_usd *= (spread_info["net_edge_bps"] / 10000)
+            btc_amount, trade_size_zar = self.calculate_trade_size(spread_info, direction)
+            if btc_amount <= 0:
+                logger.warning("[PAPER] Trade size calculated as zero")
+                return None
+            
+            net_edge_pct = spread_info["net_edge_bps"] / 10000
+            profit_zar = trade_size_zar * net_edge_pct
+            usd_zar_rate = spread_info.get("usd_zar_rate", 17.0)
+            profit_usd = profit_zar / usd_zar_rate
+            
+            if direction == "luno_to_binance":
+                self._paper_floats["luno_zar"] -= trade_size_zar
+                self._paper_floats["luno_btc"] += btc_amount * (1 - luno_fee)
+                self._paper_floats["binance_btc"] -= btc_amount
+                self._paper_floats["binance_usdt"] += btc_amount * spread_info["binance_usd"] * (1 - binance_fee)
+            else:
+                self._paper_floats["binance_usdt"] -= btc_amount * spread_info["binance_usd"]
+                self._paper_floats["binance_btc"] += btc_amount * (1 - binance_fee)
+                self._paper_floats["luno_btc"] -= btc_amount
+                self._paper_floats["luno_zar"] += trade_size_zar * (1 - luno_fee)
+            
+            self._paper_floats["last_direction"] = direction
+            
+            logger.info(f"[PAPER] Trade: {direction} | Size: {btc_amount:.6f} BTC (R{trade_size_zar:.2f}) | Profit: R{profit_zar:.2f}")
+            logger.info(f"[PAPER] New floats: Binance BTC={self._paper_floats['binance_btc']:.6f}, USDT={self._paper_floats['binance_usdt']:.2f} | Luno BTC={self._paper_floats['luno_btc']:.6f}, ZAR={self._paper_floats['luno_zar']:.2f}")
             
             db = SessionLocal()
             try:
@@ -168,7 +258,7 @@ class FastArbitrageLoop:
                 self.total_pnl += profit_usd
                 self._stats["trades_executed"] += 1
                 
-                logger.info(f"[PAPER] Trade logged: {trade.id}, Simulated Profit: ${profit_usd:.4f}")
+                logger.info(f"[PAPER] Trade logged: {trade.id}, Profit: R{profit_zar:.2f} (${profit_usd:.4f})")
                 return trade
             finally:
                 db.close()
@@ -292,6 +382,9 @@ class FastArbitrageLoop:
                 self.consecutive_errors += 1
                 return
             
+            if config.is_paper_mode() and not self._paper_floats_initialized:
+                self.initialize_paper_floats(luno_price.last)
+            
             self.consecutive_errors = 0
             
             check_time = (datetime.utcnow() - start_time).total_seconds() * 1000
@@ -318,12 +411,18 @@ class FastArbitrageLoop:
                     if time_since_trade < self._min_trade_interval:
                         return
                 
+                if config.is_paper_mode():
+                    can_trade, reason = self.can_execute_paper_trade(spread_info["direction"])
+                    if not can_trade:
+                        self.log_opportunity(spread_info, was_executed=False, reason_skipped=reason)
+                        return
+                
                 logger.info(
                     f"OPPORTUNITY! Direction: {spread_info['direction']}, "
-                    f"Net Edge: {spread_info['net_edge_bps']:.1f}bps"
+                    f"Net Edge: {spread_info['net_edge_bps']:.1f}bps ({spread_info['net_edge_bps']/100:.2f}%)"
                 )
                 
-                btc_amount = self.get_setting("MAX_TRADE_SIZE_BTC", 0.01)
+                btc_amount, trade_size_zar = self.calculate_trade_size(spread_info, spread_info['direction'])
                 trade = await self.execute_hedged_trade_parallel(spread_info, btc_amount)
                 
                 if trade:
@@ -385,6 +484,21 @@ class FastArbitrageLoop:
         self.running = False
         return True
     
+    def reset_paper_floats(self):
+        self._paper_floats = {
+            "binance_btc": 0.0,
+            "binance_usdt": 0.0,
+            "luno_btc": 0.0,
+            "luno_zar": 0.0,
+            "last_direction": None,
+        }
+        self._paper_floats_initialized = False
+        self.total_trades = 0
+        self.total_pnl = 0.0
+        self._stats["trades_executed"] = 0
+        self._stats["opportunities_found"] = 0
+        logger.info("[PAPER] Floats reset - will re-initialize on next price check")
+    
     def get_status(self) -> dict:
         uptime = None
         if self.start_time and self.running:
@@ -404,6 +518,7 @@ class FastArbitrageLoop:
             "check_interval_ms": self._check_interval * 1000,
             "stats": self._stats,
             "price_service": price_stats,
+            "paper_floats": self._paper_floats if config.is_paper_mode() else None,
         }
 
 fast_arb_loop = FastArbitrageLoop()

@@ -53,3 +53,8 @@ export async function stopBot() {
   const res = await fetch(`${API_BASE}/stop`, { method: 'POST' });
   return res.json();
 }
+
+export async function resetPaperFloats() {
+  const res = await fetch(`${API_BASE}/reset-paper-floats`, { method: 'POST' });
+  return res.json();
+}

@@ -121,7 +121,33 @@ VITE_API_BASE=https://your-backend-url.railway.app
 - `pnl_records` - Daily PnL summaries
 - `config_history` - Configuration change history
 
+## Paper Trading Simulation
+
+The paper mode simulates real-world trading with proper float tracking:
+
+**Initial State:** 
+- Luno: R5,000 ZAR + 0 BTC
+- Binance: R5,000 equivalent in BTC (~0.003 BTC) + 0 USDT
+
+**Trade Cycle:**
+1. **luno_to_binance**: Spend ZAR to buy BTC on Luno, sell BTC on Binance for USDT
+   - After: Luno has BTC, Binance has USDT
+   - Next trade must be binance_to_luno (waiting for reversal)
+
+2. **binance_to_luno**: Spend USDT to buy BTC on Binance, sell BTC on Luno for ZAR
+   - After: Back to starting positions (minus fees)
+   - Profit captured from spread differential
+
+**Key Features:**
+- Profit calculation: trade_size_zar × net_edge_percentage (e.g., R5,000 × 0.82% = R41)
+- Trade size capped by available balances (prevents negative floats)
+- Alternating direction enforcement (can't repeat same direction until reversal)
+- Reset button to restart simulation
+
 ## Recent Changes
+- December 31, 2025: Fixed paper trading simulation with proper float tracking and profit calculation
+- December 31, 2025: Updated default Net Edge threshold to 1.0% (was 0.4%)
+- December 31, 2025: Dashboard now displays all values in ZAR with percentages instead of bps
 - December 30, 2025: Fixed Railway deployment (PORT handling, updated fallback FX rate to 17.0)
 - December 30, 2025: Upgraded to high-speed architecture with WebSocket, 500ms checks, parallel order execution
 - December 30, 2025: Added live USD/ZAR exchange rate fetching (was causing ~10% calculation error with static rate)
