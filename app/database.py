@@ -42,9 +42,31 @@ def clear_all_tables():
     finally:
         db.close()
 
+def run_migrations():
+    """Run schema migrations for existing tables"""
+    from sqlalchemy import text
+    db = SessionLocal()
+    try:
+        # Add profit_zar column if it doesn't exist
+        if DATABASE_URL.startswith("postgresql"):
+            db.execute(text("""
+                ALTER TABLE trades 
+                ADD COLUMN IF NOT EXISTS profit_zar FLOAT
+            """))
+            db.commit()
+            logger.info("Database migrations completed")
+    except Exception as e:
+        db.rollback()
+        logger.warning(f"Migration note: {e}")
+    finally:
+        db.close()
+
 def init_db():
     from app.models import trade, float_balance, pnl
     Base.metadata.create_all(bind=engine)
+    
+    # Run migrations for new columns
+    run_migrations()
     
     if CLEAR_DB_ON_STARTUP:
         logger.warning("CLEAR_DB_ON_STARTUP is enabled - clearing all tables")
