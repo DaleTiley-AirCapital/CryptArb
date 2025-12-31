@@ -215,6 +215,46 @@ function SettingsModal({ config, onClose, onSave, showToast }) {
   )
 }
 
+function LiveModeConfirmModal({ onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onCancel}>
+      <div className="bg-slate-800 rounded-lg p-6 w-full max-w-md border-2 border-red-500/50" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <h2 className="text-xl font-bold text-red-400">Switch to Live Trading?</h2>
+        </div>
+        
+        <div className="mb-6 space-y-3 text-slate-300">
+          <p className="font-semibold text-white">Warning: This will enable real trading!</p>
+          <ul className="list-disc list-inside space-y-1 text-sm">
+            <li>Real orders will be placed on Luno and Binance</li>
+            <li>Real money will be used for trades</li>
+            <li>Ensure your API keys have trading permissions</li>
+            <li>Monitor your exchange balances carefully</li>
+          </ul>
+        </div>
+        
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg transition font-semibold"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition font-semibold"
+          >
+            Yes, Go Live
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function GearIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -663,6 +703,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showLiveModeConfirm, setShowLiveModeConfirm] = useState(false)
   const [toasts, setToasts] = useState([])
   const [actionLoading, setActionLoading] = useState({ start: false, mode: false })
 
@@ -743,10 +784,19 @@ function App() {
     }
   }
 
-  const handleModeToggle = async () => {
+  const handleModeToggle = () => {
+    const currentMode = config?.mode || 'paper'
+    if (currentMode === 'paper') {
+      setShowLiveModeConfirm(true)
+    } else {
+      performModeSwitch('paper')
+    }
+  }
+
+  const performModeSwitch = async (newMode) => {
+    setShowLiveModeConfirm(false)
     setActionLoading(prev => ({ ...prev, mode: true }))
     try {
-      const newMode = config?.mode === 'paper' ? 'live' : 'paper'
       await updateConfig({ mode: newMode })
       showToast(`Switched to ${newMode} mode`, 'success')
       await loadFastData()
@@ -812,6 +862,13 @@ function App() {
           onClose={() => setShowSettings(false)}
           onSave={handleSettingsSave}
           showToast={showToast}
+        />
+      )}
+
+      {showLiveModeConfirm && (
+        <LiveModeConfirmModal
+          onConfirm={() => performModeSwitch('live')}
+          onCancel={() => setShowLiveModeConfirm(false)}
         />
       )}
 
