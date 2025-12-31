@@ -147,7 +147,25 @@ The paper mode simulates real-world trading with proper float tracking:
 - Alternating direction enforcement (can't repeat same direction until reversal)
 - Reset button to restart simulation
 
+## Tick Buffer Architecture
+The bot maintains a rolling buffer of the last 6 price checks in memory for real-time analysis. When the buffer is full, the oldest tick is written to the `arb_ticks` PostgreSQL table for historical analysis.
+
+**How it works:**
+1. Every 500ms, the bot checks prices and calculates spreads
+2. Each check creates a "tick" containing: prices, FX rate, spread %, net edge, direction, profitability
+3. The last 6 ticks are kept in memory (deque) for instant access
+4. When the 6th tick arrives, the oldest tick is queued for async database write
+5. A background writer task persists ticks without blocking the main loop
+
+**API Endpoints:**
+- `GET /ticks?hours=1&limit=1000` - Fetch historical ticks
+- `GET /ticks/stats?hours=24` - Tick statistics (count, min/max/avg edge)
+- `GET /status` - Includes `recent_ticks` array with the in-memory buffer
+
+**Data retention:** ~170k ticks/day at 500ms intervals. Consider archival strategy for long-term storage.
+
 ## Recent Changes
+- December 31, 2025: Added tick buffer with async database persistence for historical price analysis
 - December 31, 2025: Added Net Edge Analysis section with distribution stats and threshold impact table
 - December 31, 2025: Added Missed Opportunities section with amber/red styling
 - December 31, 2025: Made all data tables scrollable with sticky headers (max-height 384px)

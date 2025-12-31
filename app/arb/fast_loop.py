@@ -1,5 +1,7 @@
 import asyncio
 import logging
+from collections import deque
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 from app.arb.price_service import price_service
@@ -9,12 +11,35 @@ from app.arb.exchanges.base import PriceData
 from app.arb.fx_rates import fx_service
 from app.config import config
 from app.database import SessionLocal
-from app.models import Trade, FloatBalance, Opportunity
+from app.models import Trade, FloatBalance, Opportunity, ArbTick
+
+
+@dataclass
+class TickData:
+    timestamp: datetime
+    luno_bid: float
+    luno_ask: float
+    luno_last: float
+    binance_bid: float
+    binance_ask: float
+    binance_last: float
+    usd_zar_rate: float
+    spread_pct: float
+    gross_edge_bps: float
+    net_edge_bps: float
+    direction: str
+    is_profitable: bool
+    min_edge_threshold_bps: int
+    slippage_bps: int
+    fee_bps: int
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class FastArbitrageLoop:
+    TICK_BUFFER_SIZE = 6
+    TICK_QUEUE_MAX_SIZE = 100
+    
     def __init__(self):
         self.running = False
         self.last_check = None
@@ -32,6 +57,7 @@ class FastArbitrageLoop:
             "opportunities_found": 0,
             "trades_executed": 0,
             "avg_check_time_ms": 0,
+            "ticks_persisted": 0,
         }
         self._paper_floats = {
             "binance_btc": 0.0,
@@ -41,6 +67,9 @@ class FastArbitrageLoop:
             "last_direction": None,
         }
         self._paper_floats_initialized = False
+        self._tick_buffer: deque[TickData] = deque(maxlen=self.TICK_BUFFER_SIZE)
+        self._tick_queue: asyncio.Queue = asyncio.Queue(maxsize=self.TICK_QUEUE_MAX_SIZE)
+        self._tick_writer_task: Optional[asyncio.Task] = None
     
     def get_setting(self, key: str, default=None):
         return config.get(key) if config.get(key) is not None else getattr(config, key, default)
@@ -112,6 +141,99 @@ class FastArbitrageLoop:
             "is_profitable": is_profitable
         }
     
+    def create_tick_from_spread(self, luno_price: PriceData, binance_price: PriceData, spread_info: dict) -> TickData:
+        min_net_edge = self.get_setting("MIN_NET_EDGE_BPS", 40)
+        slippage_bps = self.get_setting("SLIPPAGE_BPS_BUFFER", 10)
+        luno_fee = self.get_setting("LUNO_TRADING_FEE", 0.001)
+        binance_fee = self.get_setting("BINANCE_TRADING_FEE", 0.001)
+        total_fee_bps = int((luno_fee + binance_fee) * 10000)
+        
+        return TickData(
+            timestamp=datetime.utcnow(),
+            luno_bid=luno_price.bid,
+            luno_ask=luno_price.ask,
+            luno_last=luno_price.last,
+            binance_bid=binance_price.bid,
+            binance_ask=binance_price.ask,
+            binance_last=binance_price.last,
+            usd_zar_rate=spread_info.get("usd_zar_rate", 17.0),
+            spread_pct=spread_info.get("spread_percent", 0),
+            gross_edge_bps=spread_info.get("gross_edge_bps", 0),
+            net_edge_bps=spread_info.get("net_edge_bps", 0),
+            direction=spread_info.get("direction", "unknown"),
+            is_profitable=spread_info.get("is_profitable", False),
+            min_edge_threshold_bps=int(min_net_edge),
+            slippage_bps=int(slippage_bps),
+            fee_bps=total_fee_bps,
+        )
+    
+    def add_tick_to_buffer(self, tick: TickData):
+        if len(self._tick_buffer) >= self.TICK_BUFFER_SIZE:
+            oldest_tick = self._tick_buffer[0]
+            if self._tick_queue and not self._tick_queue.full():
+                try:
+                    self._tick_queue.put_nowait(oldest_tick)
+                except asyncio.QueueFull:
+                    logger.warning("Tick queue full, dropping tick")
+        self._tick_buffer.append(tick)
+    
+    async def _tick_writer_loop(self):
+        logger.info("Tick writer task started")
+        while self.running or (self._tick_queue and not self._tick_queue.empty()):
+            try:
+                tick = await asyncio.wait_for(self._tick_queue.get(), timeout=1.0)
+                await asyncio.to_thread(self._persist_tick, tick)
+                self._stats["ticks_persisted"] += 1
+            except asyncio.TimeoutError:
+                continue
+            except Exception as e:
+                logger.error(f"Error in tick writer: {e}")
+        logger.info("Tick writer task stopped")
+    
+    def _persist_tick(self, tick: TickData):
+        db = SessionLocal()
+        try:
+            arb_tick = ArbTick(
+                timestamp=tick.timestamp,
+                luno_bid=tick.luno_bid,
+                luno_ask=tick.luno_ask,
+                luno_last=tick.luno_last,
+                binance_bid=tick.binance_bid,
+                binance_ask=tick.binance_ask,
+                binance_last=tick.binance_last,
+                usd_zar_rate=tick.usd_zar_rate,
+                spread_pct=tick.spread_pct,
+                gross_edge_bps=tick.gross_edge_bps,
+                net_edge_bps=tick.net_edge_bps,
+                direction=tick.direction,
+                is_profitable=tick.is_profitable,
+                min_edge_threshold_bps=tick.min_edge_threshold_bps,
+                slippage_bps=tick.slippage_bps,
+                fee_bps=tick.fee_bps,
+            )
+            db.add(arb_tick)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error persisting tick: {e}")
+        finally:
+            db.close()
+    
+    def get_recent_ticks(self) -> list:
+        return [
+            {
+                "timestamp": t.timestamp.isoformat() if t.timestamp else None,
+                "luno_last": t.luno_last,
+                "binance_last": t.binance_last,
+                "usd_zar_rate": t.usd_zar_rate,
+                "spread_pct": t.spread_pct,
+                "net_edge_bps": t.net_edge_bps,
+                "direction": t.direction,
+                "is_profitable": t.is_profitable,
+            }
+            for t in list(self._tick_buffer)
+        ]
+
     def log_opportunity(self, spread_info: dict, was_executed: bool = False, reason_skipped: str = None):
         if spread_info.get("error"):
             return
@@ -387,6 +509,9 @@ class FastArbitrageLoop:
                 self.consecutive_errors += 1
                 return
             
+            tick = self.create_tick_from_spread(luno_price, binance_price, spread_info)
+            self.add_tick_to_buffer(tick)
+            
             if config.is_paper_mode() and not self._paper_floats_initialized:
                 self.initialize_paper_floats(luno_price.last)
             
@@ -454,10 +579,28 @@ class FastArbitrageLoop:
         finally:
             await price_service.stop()
             self.running = False
+            self._flush_tick_buffer()
+            if self._tick_writer_task:
+                try:
+                    await asyncio.wait_for(self._tick_writer_task, timeout=5.0)
+                except asyncio.TimeoutError:
+                    logger.warning("Tick writer task did not finish in time")
+                self._tick_writer_task = None
             self.task = None
+    
+    def _flush_tick_buffer(self):
+        for tick in list(self._tick_buffer):
+            try:
+                self._tick_queue.put_nowait(tick)
+            except asyncio.QueueFull:
+                logger.warning("Queue full during flush, dropping tick")
+        self._tick_buffer.clear()
+        logger.info(f"Flushed tick buffer to queue")
     
     async def _loop_inner(self):
         self.start_time = datetime.utcnow()
+        
+        self._tick_writer_task = asyncio.create_task(self._tick_writer_loop())
         
         await price_service.start()
         await asyncio.sleep(2)
@@ -524,6 +667,7 @@ class FastArbitrageLoop:
             "stats": self._stats,
             "price_service": price_stats,
             "paper_floats": self._paper_floats if config.is_paper_mode() else None,
+            "recent_ticks": self.get_recent_ticks(),
         }
 
 fast_arb_loop = FastArbitrageLoop()
