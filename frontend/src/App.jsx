@@ -1013,15 +1013,13 @@ function App() {
             )}
           </div>
 
-          {/* Balances Card - Right (Exchange + Simulated stacked) */}
-          <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
-            <h2 className="text-xl font-semibold mb-4">Exchange Balances</h2>
-            <FloatsDisplay floats={floats} />
-            
-            {status?.bot?.mode === 'paper' && status?.bot?.paper_floats && (
-              <div className="mt-6 pt-6 border-t border-slate-700">
+          {/* Balances Card - Right */}
+          <div className={`bg-slate-800/30 rounded-lg p-6 border ${botMode === 'paper' ? 'border-amber-500/40' : 'border-slate-700'}`}>
+            {/* Paper Mode: Show Simulated Trade Balances */}
+            {botMode === 'paper' ? (
+              <>
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-amber-400">Simulated Trade Balances</h3>
+                  <h2 className="text-xl font-semibold text-amber-400">Simulated Trade Balances</h2>
                   <button
                     onClick={handleResetFloats}
                     className="px-3 py-1.5 text-sm bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded border border-amber-500/30"
@@ -1029,22 +1027,36 @@ function App() {
                     Reset Floats
                   </button>
                 </div>
-                <PaperFloatsDisplay paperFloats={status?.bot?.paper_floats} onReset={handleResetFloats} usdZarRate={usdZarRate} />
-                {status?.bot?.paper_floats?.last_direction && (
-                  <div className="mt-3 text-sm text-slate-400">
-                    Last trade: <span className="text-amber-300">{status?.bot?.paper_floats?.last_direction === 'binance_to_luno' ? 'Binance → Luno' : 'Luno → Binance'}</span>
-                    <span className="ml-2 text-slate-500">(Waiting for reversal)</span>
-                  </div>
+                {status?.bot?.paper_floats ? (
+                  <>
+                    <PaperFloatsDisplay paperFloats={status?.bot?.paper_floats} onReset={handleResetFloats} usdZarRate={usdZarRate} />
+                    {status?.bot?.paper_floats?.last_direction && (
+                      <div className="mt-3 text-sm text-slate-400">
+                        Last trade: <span className="text-amber-300">{status?.bot?.paper_floats?.last_direction === 'binance_to_luno' ? 'Binance → Luno' : 'Luno → Binance'}</span>
+                        <span className="ml-2 text-slate-500">(Waiting for reversal)</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-slate-400 text-center py-4">Start the bot to see simulated balances</div>
                 )}
-              </div>
+              </>
+            ) : (
+              /* Live Mode: Show Exchange Balances */
+              <>
+                <h2 className="text-xl font-semibold mb-4">Exchange Balances</h2>
+                <FloatsDisplay floats={floats} />
+              </>
             )}
           </div>
         </div>
 
         {/* Row 2: Recent Trades - Full Width */}
-        <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700 mb-8">
+        <div className={`bg-slate-800/30 rounded-lg p-6 border mb-8 ${botMode === 'paper' ? 'border-amber-500/40' : 'border-slate-700'}`}>
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Recent Trades</h2>
+            <h2 className={`text-xl font-semibold ${botMode === 'paper' ? 'text-amber-400' : ''}`}>
+              {botMode === 'paper' ? 'Paper Trades' : 'Recent Trades'}
+            </h2>
             <button
               onClick={() => trades.length > 0 && exportToCSV(trades, 'recent_trades.csv')}
               disabled={trades.length === 0}
@@ -1058,9 +1070,11 @@ function App() {
 
         {/* Row 3: Recent Opportunities (50%) + Missed Opportunities (50%) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
+          <div className={`bg-slate-800/30 rounded-lg p-6 border ${botMode === 'paper' ? 'border-amber-500/40' : 'border-slate-700'}`}>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Recent Opportunities</h2>
+              <h2 className={`text-xl font-semibold ${botMode === 'paper' ? 'text-amber-400' : ''}`}>
+                {botMode === 'paper' ? 'Paper Opportunities' : 'Recent Opportunities'}
+              </h2>
               <button
                 onClick={() => opportunities.length > 0 && exportToCSV(opportunities, 'recent_opportunities.csv')}
                 disabled={opportunities.length === 0}
@@ -1072,7 +1086,7 @@ function App() {
             <OpportunitiesTable opportunities={opportunities} />
           </div>
 
-          <div className="bg-slate-800/30 rounded-lg p-6 border border-amber-500/30">
+          <div className={`bg-slate-800/30 rounded-lg p-6 border ${botMode === 'paper' ? 'border-amber-500/40' : 'border-amber-500/30'}`}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-amber-400">Missed Opportunities</h2>
               <button
