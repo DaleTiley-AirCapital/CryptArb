@@ -28,7 +28,9 @@ class Config:
     SLIPPAGE_BPS_BUFFER: float = float(os.environ.get("SLIPPAGE_BPS_BUFFER", "10"))
     
     MIN_REMAINING_ZAR_LUNO: float = float(os.environ.get("MIN_REMAINING_ZAR_LUNO", "1000"))
+    MIN_REMAINING_BTC_LUNO: float = float(os.environ.get("MIN_REMAINING_BTC_LUNO", "0.0005"))
     MIN_REMAINING_BTC_BINANCE: float = float(os.environ.get("MIN_REMAINING_BTC_BINANCE", "0.001"))
+    MIN_REMAINING_USDT_BINANCE: float = float(os.environ.get("MIN_REMAINING_USDT_BINANCE", "50"))
     
     USD_ZAR_RATE: float = float(os.environ.get("USD_ZAR_RATE", "17.0"))
     
@@ -61,7 +63,9 @@ class Config:
             "binance_trading_fee": self._runtime_overrides.get("BINANCE_TRADING_FEE", self.BINANCE_TRADING_FEE),
             "slippage_bps_buffer": self._runtime_overrides.get("SLIPPAGE_BPS_BUFFER", self.SLIPPAGE_BPS_BUFFER),
             "min_remaining_zar_luno": self._runtime_overrides.get("MIN_REMAINING_ZAR_LUNO", self.MIN_REMAINING_ZAR_LUNO),
+            "min_remaining_btc_luno": self._runtime_overrides.get("MIN_REMAINING_BTC_LUNO", self.MIN_REMAINING_BTC_LUNO),
             "min_remaining_btc_binance": self._runtime_overrides.get("MIN_REMAINING_BTC_BINANCE", self.MIN_REMAINING_BTC_BINANCE),
+            "min_remaining_usdt_binance": self._runtime_overrides.get("MIN_REMAINING_USDT_BINANCE", self.MIN_REMAINING_USDT_BINANCE),
             "usd_zar_rate": self._runtime_overrides.get("USD_ZAR_RATE", self.USD_ZAR_RATE),
             "error_stop_count": self._runtime_overrides.get("ERROR_STOP_COUNT", self.ERROR_STOP_COUNT)
         }

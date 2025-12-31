@@ -28,17 +28,28 @@ function ToastContainer({ toasts, removeToast }) {
   )
 }
 
+function Tooltip({ text }) {
+  return (
+    <span className="ml-1 inline-block cursor-help text-slate-500 hover:text-slate-300" title={text}>
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+      </svg>
+    </span>
+  )
+}
+
 function SettingsModal({ config, onClose, onSave, showToast }) {
   const [formData, setFormData] = useState({
     mode: config?.mode || 'paper',
-    min_net_edge_bps: config?.min_net_edge_bps ?? 40,
+    min_net_edge_bps: config?.min_net_edge_bps ?? 100,
     max_trade_size_btc: config?.max_trade_size_btc ?? 0.01,
     min_trade_size_btc: config?.min_trade_size_btc ?? 0.0001,
     max_trade_zar: config?.max_trade_zar ?? 5000,
-    loop_interval_seconds: config?.loop_interval_seconds ?? 0.5,
     slippage_bps_buffer: config?.slippage_bps_buffer ?? 10,
     min_remaining_zar_luno: config?.min_remaining_zar_luno ?? 1000,
+    min_remaining_btc_luno: config?.min_remaining_btc_luno ?? 0.0005,
     min_remaining_btc_binance: config?.min_remaining_btc_binance ?? 0.001,
+    min_remaining_usdt_binance: config?.min_remaining_usdt_binance ?? 50,
   })
   const [saving, setSaving] = useState(false)
 
@@ -55,10 +66,11 @@ function SettingsModal({ config, onClose, onSave, showToast }) {
         max_trade_size_btc: parseFloat(formData.max_trade_size_btc),
         min_trade_size_btc: parseFloat(formData.min_trade_size_btc),
         max_trade_zar: parseFloat(formData.max_trade_zar),
-        loop_interval_seconds: parseFloat(formData.loop_interval_seconds),
         slippage_bps_buffer: parseFloat(formData.slippage_bps_buffer),
         min_remaining_zar_luno: parseFloat(formData.min_remaining_zar_luno),
+        min_remaining_btc_luno: parseFloat(formData.min_remaining_btc_luno),
         min_remaining_btc_binance: parseFloat(formData.min_remaining_btc_binance),
+        min_remaining_usdt_binance: parseFloat(formData.min_remaining_usdt_binance),
       })
       showToast('Configuration saved successfully', 'success')
       onSave()
@@ -95,95 +107,148 @@ function SettingsModal({ config, onClose, onSave, showToast }) {
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>Min Net Edge (%)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={(formData.min_net_edge_bps / 100).toFixed(2)}
-                onChange={(e) => handleChange('min_net_edge_bps', parseFloat(e.target.value) * 100)}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Slippage Buffer (%)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={(formData.slippage_bps_buffer / 100).toFixed(2)}
-                onChange={(e) => handleChange('slippage_bps_buffer', parseFloat(e.target.value) * 100)}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>Max Trade Size (BTC)</label>
-              <input
-                type="number"
-                step="0.0001"
-                value={formData.max_trade_size_btc}
-                onChange={(e) => handleChange('max_trade_size_btc', e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Min Trade Size (BTC)</label>
-              <input
-                type="number"
-                step="0.0001"
-                value={formData.min_trade_size_btc}
-                onChange={(e) => handleChange('min_trade_size_btc', e.target.value)}
-                className={inputClass}
-              />
+          <div className="border-t border-slate-600 pt-4 mt-2">
+            <h3 className="text-sm font-semibold text-slate-300 mb-3">Profitability Thresholds</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>
+                  Min Net Edge (%)
+                  <Tooltip text="Minimum profit margin after fees to execute a trade. Higher = fewer trades but safer." />
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={(formData.min_net_edge_bps / 100).toFixed(2)}
+                  onChange={(e) => handleChange('min_net_edge_bps', parseFloat(e.target.value) * 100)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>
+                  Slippage Buffer (%)
+                  <Tooltip text="Extra margin deducted to account for price movement during trade execution." />
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={(formData.slippage_bps_buffer / 100).toFixed(2)}
+                  onChange={(e) => handleChange('slippage_bps_buffer', parseFloat(e.target.value) * 100)}
+                  className={inputClass}
+                />
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>Max Trade (ZAR)</label>
-              <input
-                type="number"
-                step="100"
-                value={formData.max_trade_zar}
-                onChange={(e) => handleChange('max_trade_zar', e.target.value)}
-                className={inputClass}
-              />
+          <div className="border-t border-slate-600 pt-4 mt-2">
+            <h3 className="text-sm font-semibold text-slate-300 mb-3">Trade Size Limits</h3>
+            <div className="grid grid-cols-2 gap-4 mb-3">
+              <div>
+                <label className={labelClass}>
+                  Max Trade Size (BTC)
+                  <Tooltip text="Maximum BTC per trade. Bot uses the smaller of BTC limit or ZAR limit." />
+                </label>
+                <input
+                  type="number"
+                  step="0.0001"
+                  value={formData.max_trade_size_btc}
+                  onChange={(e) => handleChange('max_trade_size_btc', e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>
+                  Min Trade Size (BTC)
+                  <Tooltip text="Minimum BTC per trade. Avoids tiny 'dust' trades that aren't worth fees." />
+                </label>
+                <input
+                  type="number"
+                  step="0.0001"
+                  value={formData.min_trade_size_btc}
+                  onChange={(e) => handleChange('min_trade_size_btc', e.target.value)}
+                  className={inputClass}
+                />
+              </div>
             </div>
-            <div>
-              <label className={labelClass}>Loop Interval (seconds)</label>
-              <input
-                type="number"
-                step="0.1"
-                value={formData.loop_interval_seconds}
-                onChange={(e) => handleChange('loop_interval_seconds', e.target.value)}
-                className={inputClass}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>
+                  Max Trade (ZAR)
+                  <Tooltip text="Maximum ZAR value per trade. Bot uses the smaller of BTC limit or ZAR limit." />
+                </label>
+                <input
+                  type="number"
+                  step="100"
+                  value={formData.max_trade_zar}
+                  onChange={(e) => handleChange('max_trade_zar', e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <div className="text-slate-500 text-xs mt-6">
+                  Check interval: 500ms (hardcoded)
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>Min Remaining ZAR (Luno)</label>
-              <input
-                type="number"
-                step="100"
-                value={formData.min_remaining_zar_luno}
-                onChange={(e) => handleChange('min_remaining_zar_luno', e.target.value)}
-                className={inputClass}
-              />
+          <div className="border-t border-slate-600 pt-4 mt-2">
+            <h3 className="text-sm font-semibold text-slate-300 mb-3">Safety Buffers (Min Remaining)</h3>
+            <p className="text-xs text-slate-400 mb-3">Keep these amounts as reserves to cover fees and slippage</p>
+            <div className="grid grid-cols-2 gap-4 mb-3">
+              <div>
+                <label className={labelClass}>
+                  Luno - ZAR
+                  <Tooltip text="Minimum ZAR to keep in Luno as safety buffer." />
+                </label>
+                <input
+                  type="number"
+                  step="100"
+                  value={formData.min_remaining_zar_luno}
+                  onChange={(e) => handleChange('min_remaining_zar_luno', e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>
+                  Luno - BTC
+                  <Tooltip text="Minimum BTC to keep in Luno as safety buffer." />
+                </label>
+                <input
+                  type="number"
+                  step="0.0001"
+                  value={formData.min_remaining_btc_luno}
+                  onChange={(e) => handleChange('min_remaining_btc_luno', e.target.value)}
+                  className={inputClass}
+                />
+              </div>
             </div>
-            <div>
-              <label className={labelClass}>Min Remaining BTC (Binance)</label>
-              <input
-                type="number"
-                step="0.0001"
-                value={formData.min_remaining_btc_binance}
-                onChange={(e) => handleChange('min_remaining_btc_binance', e.target.value)}
-                className={inputClass}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>
+                  Binance - BTC
+                  <Tooltip text="Minimum BTC to keep in Binance as safety buffer." />
+                </label>
+                <input
+                  type="number"
+                  step="0.0001"
+                  value={formData.min_remaining_btc_binance}
+                  onChange={(e) => handleChange('min_remaining_btc_binance', e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>
+                  Binance - USDT
+                  <Tooltip text="Minimum USDT to keep in Binance as safety buffer." />
+                </label>
+                <input
+                  type="number"
+                  step="1"
+                  value={formData.min_remaining_usdt_binance}
+                  onChange={(e) => handleChange('min_remaining_usdt_binance', e.target.value)}
+                  className={inputClass}
+                />
+              </div>
             </div>
           </div>
         </div>

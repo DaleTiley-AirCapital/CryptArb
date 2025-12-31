@@ -20,7 +20,9 @@ class ConfigUpdate(BaseModel):
     loop_interval_seconds: Optional[int] = None
     slippage_bps_buffer: Optional[float] = None
     min_remaining_zar_luno: Optional[float] = None
+    min_remaining_btc_luno: Optional[float] = None
     min_remaining_btc_binance: Optional[float] = None
+    min_remaining_usdt_binance: Optional[float] = None
     usd_zar_rate: Optional[float] = None
 
 @router.get("/config")
@@ -62,9 +64,15 @@ async def update_config(update: ConfigUpdate, db: Session = Depends(get_db)):
     if update.min_remaining_zar_luno is not None:
         config.set("MIN_REMAINING_ZAR_LUNO", update.min_remaining_zar_luno)
         changes.append(f"min_remaining_zar_luno={update.min_remaining_zar_luno}")
+    if update.min_remaining_btc_luno is not None:
+        config.set("MIN_REMAINING_BTC_LUNO", update.min_remaining_btc_luno)
+        changes.append(f"min_remaining_btc_luno={update.min_remaining_btc_luno}")
     if update.min_remaining_btc_binance is not None:
         config.set("MIN_REMAINING_BTC_BINANCE", update.min_remaining_btc_binance)
         changes.append(f"min_remaining_btc_binance={update.min_remaining_btc_binance}")
+    if update.min_remaining_usdt_binance is not None:
+        config.set("MIN_REMAINING_USDT_BINANCE", update.min_remaining_usdt_binance)
+        changes.append(f"min_remaining_usdt_binance={update.min_remaining_usdt_binance}")
     if update.usd_zar_rate is not None:
         config.set("USD_ZAR_RATE", update.usd_zar_rate)
         changes.append(f"usd_zar_rate={update.usd_zar_rate}")
