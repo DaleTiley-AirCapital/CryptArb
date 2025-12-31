@@ -285,22 +285,53 @@ class FastArbitrageLoop:
         self._paper_floats_initialized = True
         logger.info(f"[PAPER] Initialized floats: Luno ZAR={max_trade_zar:.2f}, Binance BTC={btc_value:.8f} (≈R{max_trade_zar:.2f})")
 
-    def can_execute_paper_trade(self, direction: str) -> tuple[bool, str]:
-        if direction == "luno_to_binance":
-            if self._paper_floats["binance_btc"] <= 0:
-                return False, "No BTC on Binance to sell"
-            if self._paper_floats["luno_zar"] <= 0:
-                return False, "No ZAR on Luno to buy"
+    def get_safety_buffers(self) -> dict:
+        return {
+            "luno_zar": self.get_setting("MIN_REMAINING_ZAR_LUNO", 1000),
+            "luno_btc": self.get_setting("MIN_REMAINING_BTC_LUNO", 0.0005),
+            "binance_btc": self.get_setting("MIN_REMAINING_BTC_BINANCE", 0.001),
+            "binance_usdt": self.get_setting("MIN_REMAINING_USDT_BINANCE", 50),
+        }
+    
+    def get_tradeable_amounts(self, direction: str) -> dict:
+        buffers = self.get_safety_buffers()
+        if config.is_paper_mode():
+            luno_zar = max(0, self._paper_floats["luno_zar"] - buffers["luno_zar"])
+            luno_btc = max(0, self._paper_floats["luno_btc"] - buffers["luno_btc"])
+            binance_btc = max(0, self._paper_floats["binance_btc"] - buffers["binance_btc"])
+            binance_usdt = max(0, self._paper_floats["binance_usdt"] - buffers["binance_usdt"])
         else:
-            if self._paper_floats["luno_btc"] <= 0:
-                return False, "No BTC on Luno to sell"
-            if self._paper_floats["binance_usdt"] <= 0:
-                return False, "No USDT on Binance to buy"
+            luno_zar = 0
+            luno_btc = 0
+            binance_btc = 0
+            binance_usdt = 0
+        
+        return {
+            "luno_zar": luno_zar,
+            "luno_btc": luno_btc,
+            "binance_btc": binance_btc,
+            "binance_usdt": binance_usdt,
+        }
+
+    def can_execute_paper_trade(self, direction: str) -> tuple[bool, str]:
+        tradeable = self.get_tradeable_amounts(direction)
+        
+        if direction == "luno_to_binance":
+            if tradeable["binance_btc"] <= 0:
+                return False, "Insufficient BTC on Binance (below safety buffer)"
+            if tradeable["luno_zar"] <= 0:
+                return False, "Insufficient ZAR on Luno (below safety buffer)"
+        else:
+            if tradeable["luno_btc"] <= 0:
+                return False, "Insufficient BTC on Luno (below safety buffer)"
+            if tradeable["binance_usdt"] <= 0:
+                return False, "Insufficient USDT on Binance (below safety buffer)"
         return True, ""
 
     def calculate_trade_size(self, spread_info: dict, direction: str) -> tuple[float, float]:
         max_trade_zar = self.get_setting("MAX_TRADE_ZAR", 5000)
         max_trade_btc = self.get_setting("MAX_TRADE_SIZE_BTC", 0.01)
+        min_trade_btc = self.get_setting("MIN_TRADE_SIZE_BTC", 0.0001)
         luno_zar_price = spread_info.get("luno_zar", 0)
         binance_usd = spread_info.get("binance_usd", 0)
         usd_zar_rate = spread_info.get("usd_zar_rate", 17.0)
@@ -312,16 +343,22 @@ class FastArbitrageLoop:
         btc_amount = min(btc_for_max_zar, max_trade_btc)
         
         if config.is_paper_mode():
+            tradeable = self.get_tradeable_amounts(direction)
+            
             if direction == "luno_to_binance":
-                available_btc = self._paper_floats["binance_btc"]
-                available_zar = self._paper_floats["luno_zar"]
+                available_btc = tradeable["binance_btc"]
+                available_zar = tradeable["luno_zar"]
                 max_btc_from_zar = available_zar / luno_zar_price if luno_zar_price > 0 else 0
                 btc_amount = min(btc_amount, available_btc, max_btc_from_zar)
             else:
-                available_btc = self._paper_floats["luno_btc"]
-                available_usdt = self._paper_floats["binance_usdt"]
+                available_btc = tradeable["luno_btc"]
+                available_usdt = tradeable["binance_usdt"]
                 max_btc_from_usdt = available_usdt / binance_usd if binance_usd > 0 else 0
                 btc_amount = min(btc_amount, available_btc, max_btc_from_usdt)
+            
+            if btc_amount < min_trade_btc:
+                logger.info(f"[PAPER] Trade size {btc_amount:.8f} BTC below minimum {min_trade_btc:.8f} BTC")
+                return 0.0, 0.0
         
         trade_size_zar = btc_amount * luno_zar_price
         return btc_amount, trade_size_zar
