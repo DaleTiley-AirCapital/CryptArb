@@ -34,6 +34,10 @@ class Config:
     
     USD_ZAR_RATE: float = float(os.environ.get("USD_ZAR_RATE", "17.0"))
     
+    REBALANCE_ENABLED: bool = os.environ.get("REBALANCE_ENABLED", "true").lower() == "true"
+    REBALANCE_THRESHOLD_BPS: float = float(os.environ.get("REBALANCE_THRESHOLD_BPS", "20"))
+    REBALANCE_TRIGGER_COUNT: int = int(os.environ.get("REBALANCE_TRIGGER_COUNT", "10"))
+    
     ERROR_STOP_COUNT: int = int(os.environ.get("ERROR_STOP_COUNT", "5"))
     
     _runtime_overrides: dict = field(default_factory=dict)
@@ -67,6 +71,9 @@ class Config:
             "min_remaining_btc_binance": self._runtime_overrides.get("MIN_REMAINING_BTC_BINANCE", self.MIN_REMAINING_BTC_BINANCE),
             "min_remaining_usdt_binance": self._runtime_overrides.get("MIN_REMAINING_USDT_BINANCE", self.MIN_REMAINING_USDT_BINANCE),
             "usd_zar_rate": self._runtime_overrides.get("USD_ZAR_RATE", self.USD_ZAR_RATE),
+            "rebalance_enabled": self._runtime_overrides.get("REBALANCE_ENABLED", self.REBALANCE_ENABLED),
+            "rebalance_threshold_bps": self._runtime_overrides.get("REBALANCE_THRESHOLD_BPS", self.REBALANCE_THRESHOLD_BPS),
+            "rebalance_trigger_count": self._runtime_overrides.get("REBALANCE_TRIGGER_COUNT", self.REBALANCE_TRIGGER_COUNT),
             "error_stop_count": self._runtime_overrides.get("ERROR_STOP_COUNT", self.ERROR_STOP_COUNT)
         }
 

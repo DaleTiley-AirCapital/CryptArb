@@ -68,6 +68,8 @@ class FastArbitrageLoop:
             "block_reason_b2l": None,
             "consecutive_same_direction": 0,
             "last_profitable_direction": None,
+            "rebalance_mode": False,
+            "rebalance_trades_executed": 0,
         }
         self._paper_floats = {
             "binance_btc": 0.0,
@@ -337,6 +339,63 @@ class FastArbitrageLoop:
             if tradeable["binance_usdt"] <= 0:
                 return False, "Insufficient USDT on Binance (below safety buffer)"
         return True, ""
+    
+    def should_rebalance(self) -> bool:
+        if not self.get_setting("REBALANCE_ENABLED", True):
+            return False
+        trigger_count = self.get_setting("REBALANCE_TRIGGER_COUNT", 10)
+        consecutive = self._inventory_status.get("consecutive_same_direction", 0)
+        return consecutive >= trigger_count
+    
+    def get_opposite_direction(self, direction: str) -> str:
+        return "binance_to_luno" if direction == "luno_to_binance" else "luno_to_binance"
+    
+    async def check_rebalance_opportunity(self, spread_info: dict) -> bool:
+        if not self.should_rebalance():
+            return False
+        
+        if not config.is_paper_mode():
+            return False
+        
+        stuck_direction = self._inventory_status.get("last_profitable_direction")
+        if not stuck_direction:
+            return False
+        
+        opposite_direction = self.get_opposite_direction(stuck_direction)
+        
+        can_trade, _ = self.can_execute_paper_trade(opposite_direction)
+        if not can_trade:
+            return False
+        
+        rebalance_threshold = self.get_setting("REBALANCE_THRESHOLD_BPS", 20)
+        net_edge = spread_info.get("net_edge_bps", 0)
+        
+        if opposite_direction != spread_info.get("direction"):
+            net_edge = -net_edge
+        
+        if net_edge >= rebalance_threshold:
+            logger.info(f"[REBALANCE] Triggering rebalance trade: {opposite_direction} at {net_edge:.1f}bps (threshold: {rebalance_threshold}bps)")
+            self._inventory_status["rebalance_mode"] = True
+            
+            rebalance_spread = spread_info.copy()
+            rebalance_spread["direction"] = opposite_direction
+            rebalance_spread["is_profitable"] = True
+            
+            btc_amount, trade_size_zar = self.calculate_trade_size(rebalance_spread, opposite_direction)
+            if btc_amount > 0:
+                trade = await self.execute_hedged_trade_parallel(rebalance_spread, btc_amount)
+                if trade:
+                    self._inventory_status["rebalance_trades_executed"] += 1
+                    self._inventory_status["consecutive_same_direction"] = 0
+                    self._inventory_status["rebalance_mode"] = False
+                    self._last_trade_time = datetime.utcnow()
+                    self.log_opportunity(rebalance_spread, was_executed=True, reason_skipped=None)
+                    logger.info(f"[REBALANCE] Success! Reset position with {opposite_direction}")
+                    return True
+            
+            self._inventory_status["rebalance_mode"] = False
+        
+        return False
 
     def calculate_trade_size(self, spread_info: dict, direction: str) -> tuple[float, float]:
         max_trade_zar = self.get_setting("MAX_TRADE_ZAR", 5000)
@@ -605,6 +664,10 @@ class FastArbitrageLoop:
                     if not can_trade:
                         self._stats["skipped_insufficient_balance"] += 1
                         self.log_opportunity(spread_info, was_executed=False, reason_skipped=reason)
+                        
+                        rebalanced = await self.check_rebalance_opportunity(spread_info)
+                        if rebalanced:
+                            logger.info(f"[PAPER] Rebalance executed, now able to trade in stuck direction")
                         return
                 logger.info(
                     f"OPPORTUNITY! Direction: {direction}, "
