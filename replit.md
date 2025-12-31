@@ -56,10 +56,13 @@ Located in `/frontend/`:
 - `BINANCE_API_KEY` - Binance API key
 - `BINANCE_API_SECRET` - Binance API secret
 
+### Database Configuration
+- `CLEAR_DB_ON_STARTUP` - Clear all database tables on startup (default: false). Set to "true" on Railway to reset data on each deploy.
+
 ### Trading Configuration (all have defaults)
 - `MODE` - Trading mode: "paper" or "live" (default: paper)
 - `SPREAD_THRESHOLD` - Minimum spread % to execute (default: 0.5)
-- `MIN_NET_EDGE_BPS` - Minimum net edge in basis points (default: 40)
+- `MIN_NET_EDGE_BPS` - Minimum net edge in basis points (default: 100)
 - `MAX_TRADE_SIZE_BTC` - Maximum BTC per trade (default: 0.01)
 - `MIN_TRADE_SIZE_BTC` - Minimum BTC per trade (default: 0.0001)
 - `MAX_TRADE_ZAR` - Maximum ZAR per trade (default: 5000)
