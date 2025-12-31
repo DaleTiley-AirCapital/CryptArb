@@ -690,8 +690,10 @@ function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
     try {
       const result = await fetchNetEdgeRawData(hours, 1000)
       setRawData(result)
+      return result
     } catch (err) {
       console.error('Error loading raw data:', err)
+      return null
     } finally {
       setLoadingRaw(false)
     }
@@ -705,11 +707,12 @@ function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
   }
 
   const handleExportXLSX = async () => {
-    if (!rawData?.ticks?.length) {
-      await loadRawData()
+    let data = rawData
+    if (!data?.ticks?.length) {
+      data = await loadRawData()
     }
-    if (rawData?.ticks?.length) {
-      await exportToXLSX(rawData.ticks, `net_edge_data_${hours}h.xlsx`)
+    if (data?.ticks?.length) {
+      await exportToXLSX(data.ticks, `net_edge_data_${hours}h.xlsx`)
     }
   }
 
