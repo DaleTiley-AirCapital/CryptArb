@@ -1,0 +1,89 @@
+ 
+[Region: europe-west4]
+==============
+Using Nixpacks
+==============
+
+context: sg9t-5V6C
+╔═══════════════════════════ Nixpacks v1.38.0 ══════════════════════════╗
+║ setup      │ nodejs_18, npm-9_x                                       ║
+║───────────────────────────────────────────────────────────────────────║
+║ install    │ npm ci                                                   ║
+║───────────────────────────────────────────────────────────────────────║
+║ start      │ uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+internal
+load build definition from Dockerfile
+0ms
+
+internal
+load metadata for ghcr.io/railwayapp/nixpacks:ubuntu-1745885067
+422ms
+
+internal
+load .dockerignore
+0ms
+
+stage-0
+FROM ghcr.io/railwayapp/nixpacks:ubuntu-1745885067@sha256:d45c89d80e13d7ad0fd555b5130f22a866d9dd10e861f589932303ef2314c7de
+8ms
+
+internal
+load build context
+0ms
+
+stage-0
+WORKDIR /app/ cached
+1ms
+
+stage-0
+COPY .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix
+324ms
+
+stage-0
+RUN nix-env -if .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix && nix-collect-garbage -d
+37s
+61 store paths deleted, 559.40 MiB freed
+
+stage-0
+COPY . /app/.
+102ms
+
+stage-0
+RUN npm ci
+857ms
+Run `npm audit` for details.
+
+stage-0
+RUN printf '\nPATH=/app/node_modules/.bin:$PATH' >> /root/.profile
+416ms
+
+stage-0
+COPY . /app
+38ms
+
+importing to docker
+6s
+
+auth
+sharing credentials for production-europe-west4-drams3a.railway-registry.com
+0ms
+=== Successfully Built! ===
+Run:
+docker run -it production-europe-west4-drams3a.railway-registry.com/1b85f6c6-9ef9-4557-a294-14d668a4629d:a92012e5-ccbe-4224-96f9-15dfc19e62ec
+Build time: 66.86 seconds
+ 
+====================
+Starting Healthcheck
+====================
+Path: /health
+Retry window: 5m0s
+ 
+Attempt #1 failed with service unavailable. Continuing to retry for 4m49s
+Attempt #2 failed with service unavailable. Continuing to retry for 4m48s
+Attempt #3 failed with service unavailable. Continuing to retry for 4m46s
+Attempt #4 failed with service unavailable. Continuing to retry for 4m42s
+Attempt #5 failed with service unavailable. Continuing to retry for 4m34s
+Attempt #6 failed with service unavailable. Continuing to retry for 4m17s
+Attempt #7 failed with service unavailable. Continuing to retry for 3m47s
