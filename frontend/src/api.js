@@ -64,6 +64,11 @@ export async function fetchMissedOpportunities(limit = 200) {
   return res.json();
 }
 
+export async function fetchNetEdgeAnalysis(hours = 24) {
+  const res = await fetch(`${API_BASE}/reports/net-edge-analysis?hours=${hours}`);
+  return res.json();
+}
+
 export function exportToCSV(data, filename) {
   const headers = Object.keys(data[0] || {});
   const csvContent = [

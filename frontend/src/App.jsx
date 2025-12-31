@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchStatus, fetchSummary, fetchTrades, fetchFloats, fetchConfig, updateConfig, fetchOpportunities, fetchMissedOpportunities, startBot, stopBot, resetPaperFloats, exportToCSV } from './api'
+import { fetchStatus, fetchSummary, fetchTrades, fetchFloats, fetchConfig, updateConfig, fetchOpportunities, fetchMissedOpportunities, startBot, stopBot, resetPaperFloats, exportToCSV, fetchNetEdgeAnalysis } from './api'
 
 function Toast({ message, type, onClose }) {
   useEffect(() => {
@@ -510,6 +510,138 @@ function formatUptime(seconds) {
   return `${secs}s`
 }
 
+function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
+  const timeRanges = [
+    { label: '1h', value: 1 },
+    { label: '6h', value: 6 },
+    { label: '12h', value: 12 },
+    { label: '24h', value: 24 },
+    { label: '48h', value: 48 },
+    { label: '72h', value: 72 },
+    { label: '7d', value: 168 },
+  ]
+
+  if (!data || data.message || !data.distribution) {
+    return (
+      <div className="text-center py-4 text-slate-400">
+        {data?.message || 'No analysis data available'}
+      </div>
+    )
+  }
+
+  const { stats, distribution, opportunities_per_threshold, total_opportunities } = data
+
+  const distributionValues = Object.values(distribution || {})
+  const maxBucketCount = distributionValues.length > 0 ? Math.max(...distributionValues) : 0
+
+  const thresholdLabels = {
+    "0.25%": 25,
+    "0.50%": 50,
+    "0.75%": 75,
+    "1.00%": 100,
+    "1.25%": 125,
+    "1.50%": 150,
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap gap-2">
+        {timeRanges.map((range) => (
+          <button
+            key={range.value}
+            onClick={() => onHoursChange(range.value)}
+            className={`px-3 py-1.5 text-sm rounded transition ${
+              hours === range.value
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            }`}
+          >
+            {range.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-slate-700/50 rounded-lg p-3">
+          <div className="text-slate-400 text-xs">Min Net Edge</div>
+          <div className="text-lg font-mono text-blue-400">{stats.min_net_edge_pct?.toFixed(2)}%</div>
+        </div>
+        <div className="bg-slate-700/50 rounded-lg p-3">
+          <div className="text-slate-400 text-xs">Max Net Edge</div>
+          <div className="text-lg font-mono text-green-400">{stats.max_net_edge_pct?.toFixed(2)}%</div>
+        </div>
+        <div className="bg-slate-700/50 rounded-lg p-3">
+          <div className="text-slate-400 text-xs">Average</div>
+          <div className="text-lg font-mono text-blue-400">{stats.avg_net_edge_pct?.toFixed(2)}%</div>
+        </div>
+        <div className="bg-slate-700/50 rounded-lg p-3">
+          <div className="text-slate-400 text-xs">Median</div>
+          <div className="text-lg font-mono text-blue-400">{stats.median_net_edge_pct?.toFixed(2)}%</div>
+        </div>
+      </div>
+
+      <div>
+        <h4 className="text-sm text-slate-400 mb-3">Distribution ({total_opportunities} opportunities)</h4>
+        <div className="space-y-2">
+          {Object.entries(distribution).map(([bucket, count]) => (
+            <div key={bucket} className="flex items-center gap-3">
+              <div className="w-24 text-xs text-slate-400">{bucket.replace('_', ' ')}</div>
+              <div className="flex-1 h-6 bg-slate-700 rounded overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-600 to-green-500 transition-all"
+                  style={{ width: maxBucketCount > 0 ? `${(count / maxBucketCount) * 100}%` : '0%' }}
+                />
+              </div>
+              <div className="w-12 text-right text-sm font-mono text-slate-300">{count}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h4 className="text-sm text-slate-400 mb-3">Threshold Impact Analysis</h4>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-700">
+                <th className="text-left p-2 text-slate-400">Threshold</th>
+                <th className="text-right p-2 text-slate-400">Opportunities</th>
+                <th className="text-right p-2 text-slate-400">% Captured</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(opportunities_per_threshold).map(([threshold, count]) => {
+                const thresholdBps = thresholdLabels[threshold]
+                const isCurrentThreshold = currentThresholdBps && Math.abs(thresholdBps - currentThresholdBps) < 5
+                const pctCaptured = total_opportunities > 0 ? (count / total_opportunities * 100).toFixed(1) : 0
+
+                return (
+                  <tr
+                    key={threshold}
+                    className={`border-b border-slate-800 ${isCurrentThreshold ? 'bg-blue-500/20' : 'hover:bg-slate-800/50'}`}
+                  >
+                    <td className="p-2">
+                      <span className={isCurrentThreshold ? 'text-blue-400 font-semibold' : ''}>
+                        {threshold}
+                        {isCurrentThreshold && <span className="ml-2 text-xs">(current)</span>}
+                      </span>
+                    </td>
+                    <td className="p-2 text-right font-mono text-green-400">{count}</td>
+                    <td className="p-2 text-right font-mono text-slate-300">{pctCaptured}%</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-3 text-xs text-slate-500">
+          Shows how many opportunities you would have captured at each threshold level.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function App() {
   const [status, setStatus] = useState(null)
   const [summary, setSummary] = useState(null)
@@ -518,6 +650,8 @@ function App() {
   const [config, setConfig] = useState(null)
   const [opportunities, setOpportunities] = useState([])
   const [missedOpportunities, setMissedOpportunities] = useState([])
+  const [netEdgeAnalysis, setNetEdgeAnalysis] = useState(null)
+  const [analysisHours, setAnalysisHours] = useState(24)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
@@ -552,18 +686,20 @@ function App() {
 
   const loadSlowData = async () => {
     try {
-      const [summaryData, tradesData, floatsData, configData, missedData] = await Promise.all([
+      const [summaryData, tradesData, floatsData, configData, missedData, analysisData] = await Promise.all([
         fetchSummary(),
         fetchTrades(20),
         fetchFloats(),
         fetchConfig(),
-        fetchMissedOpportunities(200)
+        fetchMissedOpportunities(200),
+        fetchNetEdgeAnalysis(analysisHours)
       ])
       setSummary(summaryData)
       setTrades(tradesData.trades || [])
       setFloats(floatsData.floats)
       setConfig(configData)
       setMissedOpportunities(missedData.opportunities || [])
+      setNetEdgeAnalysis(analysisData)
     } catch (err) {
       console.error('Error loading slow data:', err)
     }
@@ -628,6 +764,16 @@ function App() {
     } catch (err) {
       showToast('Failed to reset floats', 'error')
       console.error('Error resetting floats:', err)
+    }
+  }
+
+  const handleAnalysisHoursChange = async (newHours) => {
+    setAnalysisHours(newHours)
+    try {
+      const analysisData = await fetchNetEdgeAnalysis(newHours)
+      setNetEdgeAnalysis(analysisData)
+    } catch (err) {
+      console.error('Error fetching analysis:', err)
     }
   }
 
@@ -905,6 +1051,16 @@ function App() {
               </div>
             </div>
           )}
+        </div>
+
+        <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700 mb-8">
+          <h2 className="text-xl font-semibold mb-4">Net Edge Analysis</h2>
+          <NetEdgeAnalysis
+            data={netEdgeAnalysis}
+            hours={analysisHours}
+            onHoursChange={handleAnalysisHoursChange}
+            currentThresholdBps={config?.min_net_edge_bps}
+          />
         </div>
 
         <footer className="mt-8 text-center text-slate-500 text-sm">
