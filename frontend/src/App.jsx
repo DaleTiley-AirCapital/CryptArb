@@ -901,37 +901,9 @@ function App() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2 bg-slate-800/30 rounded-lg p-6 border border-slate-700">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Recent Trades</h2>
-              <button
-                onClick={() => trades.length > 0 && exportToCSV(trades, 'recent_trades.csv')}
-                disabled={trades.length === 0}
-                className="px-3 py-1.5 text-sm bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 disabled:cursor-not-allowed rounded flex items-center gap-1"
-              >
-                <DownloadIcon /> Export
-              </button>
-            </div>
-            <TradesTable trades={trades} usdZarRate={usdZarRate} />
-          </div>
-          <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
-            <h2 className="text-xl font-semibold mb-4">Exchange Balances</h2>
-            <FloatsDisplay floats={floats} />
-          </div>
-        </div>
-
-        {status?.bot?.mode === 'paper' && status?.bot?.paper_floats && (
-          <div className="grid grid-cols-1 gap-6 mb-8">
-            <SimulatedBalancesSection
-              paperFloats={status?.bot?.paper_floats}
-              onReset={handleResetFloats}
-              usdZarRate={usdZarRate}
-            />
-          </div>
-        )}
-
+        {/* Row 1: Live Spread Monitor (50%) + Balances Card (50%) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Live Spread Monitor - Left */}
           <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
             <h2 className="text-xl font-semibold mb-4">Live Spread Monitor</h2>
             {lastOpportunity && !lastOpportunity.error ? (
@@ -984,6 +956,51 @@ function App() {
             )}
           </div>
 
+          {/* Balances Card - Right (Exchange + Simulated stacked) */}
+          <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
+            <h2 className="text-xl font-semibold mb-4">Exchange Balances</h2>
+            <FloatsDisplay floats={floats} />
+            
+            {status?.bot?.mode === 'paper' && status?.bot?.paper_floats && (
+              <div className="mt-6 pt-6 border-t border-slate-700">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-amber-400">Simulated Trade Balances</h3>
+                  <button
+                    onClick={handleResetFloats}
+                    className="px-3 py-1.5 text-sm bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded border border-amber-500/30"
+                  >
+                    Reset Floats
+                  </button>
+                </div>
+                <PaperFloatsDisplay paperFloats={status?.bot?.paper_floats} onReset={handleResetFloats} usdZarRate={usdZarRate} />
+                {status?.bot?.paper_floats?.last_direction && (
+                  <div className="mt-3 text-sm text-slate-400">
+                    Last trade: <span className="text-amber-300">{status?.bot?.paper_floats?.last_direction === 'binance_to_luno' ? 'Binance → Luno' : 'Luno → Binance'}</span>
+                    <span className="ml-2 text-slate-500">(Waiting for reversal)</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Row 2: Recent Trades - Full Width */}
+        <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700 mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Recent Trades</h2>
+            <button
+              onClick={() => trades.length > 0 && exportToCSV(trades, 'recent_trades.csv')}
+              disabled={trades.length === 0}
+              className="px-3 py-1.5 text-sm bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 disabled:cursor-not-allowed rounded flex items-center gap-1"
+            >
+              <DownloadIcon /> Export
+            </button>
+          </div>
+          <TradesTable trades={trades} usdZarRate={usdZarRate} />
+        </div>
+
+        {/* Row 3: Recent Opportunities (50%) + Missed Opportunities (50%) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Recent Opportunities</h2>
@@ -997,70 +1014,23 @@ function App() {
             </div>
             <OpportunitiesTable opportunities={opportunities} />
           </div>
-        </div>
 
-        <div className="bg-slate-800/30 rounded-lg p-6 border border-amber-500/30 mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-amber-400">Missed Opportunities</h2>
-            <button
-              onClick={() => missedOpportunities.length > 0 && exportToCSV(missedOpportunities, 'missed_opportunities.csv')}
-              disabled={missedOpportunities.length === 0}
-              className="px-3 py-1.5 text-sm bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 disabled:cursor-not-allowed rounded flex items-center gap-1"
-            >
-              <DownloadIcon /> Export
-            </button>
-          </div>
-          <MissedOpportunitiesTable opportunities={missedOpportunities} />
-        </div>
-
-        <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700 mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Configuration</h2>
-            <button
-              onClick={() => setShowSettings(true)}
-              className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1"
-            >
-              <GearIcon /> Edit
-            </button>
-          </div>
-          {config && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="text-slate-400">Min Net Edge:</span>
-                <span className="ml-2 font-mono">{(config.min_net_edge_bps / 100).toFixed(2)}%</span>
-              </div>
-              <div>
-                <span className="text-slate-400">Max Trade BTC:</span>
-                <span className="ml-2 font-mono">{config.max_trade_size_btc}</span>
-              </div>
-              <div>
-                <span className="text-slate-400">Max Trade ZAR:</span>
-                <span className="ml-2 font-mono">R {config.max_trade_zar?.toLocaleString()}</span>
-              </div>
-              <div>
-                <span className="text-slate-400">Slippage Buffer:</span>
-                <span className="ml-2 font-mono">{(config.slippage_bps_buffer / 100).toFixed(2)}%</span>
-              </div>
-              <div>
-                <span className="text-slate-400">Poll Interval:</span>
-                <span className="ml-2 font-mono">{config.loop_interval_seconds}s</span>
-              </div>
-              <div>
-                <span className="text-slate-400">Luno Fee:</span>
-                <span className="ml-2 font-mono">{(config.luno_trading_fee * 100).toFixed(2)}%</span>
-              </div>
-              <div>
-                <span className="text-slate-400">Binance Fee:</span>
-                <span className="ml-2 font-mono">{(config.binance_trading_fee * 100).toFixed(2)}%</span>
-              </div>
-              <div>
-                <span className="text-slate-400">USD/ZAR Rate:</span>
-                <span className="ml-2 font-mono">{config.usd_zar_rate}</span>
-              </div>
+          <div className="bg-slate-800/30 rounded-lg p-6 border border-amber-500/30">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-amber-400">Missed Opportunities</h2>
+              <button
+                onClick={() => missedOpportunities.length > 0 && exportToCSV(missedOpportunities, 'missed_opportunities.csv')}
+                disabled={missedOpportunities.length === 0}
+                className="px-3 py-1.5 text-sm bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 disabled:cursor-not-allowed rounded flex items-center gap-1"
+              >
+                <DownloadIcon /> Export
+              </button>
             </div>
-          )}
+            <MissedOpportunitiesTable opportunities={missedOpportunities} />
+          </div>
         </div>
 
+        {/* Row 4: Net Edge Analysis - Full Width */}
         <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700 mb-8">
           <h2 className="text-xl font-semibold mb-4">Net Edge Analysis</h2>
           <NetEdgeAnalysis
