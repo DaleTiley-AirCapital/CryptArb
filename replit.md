@@ -148,6 +148,12 @@ The paper mode simulates real-world trading with proper float tracking:
 - Reset button to restart simulation
 
 ## Recent Changes
+- December 31, 2025: Added Missed Opportunities section with amber/red styling
+- December 31, 2025: Made all data tables scrollable with sticky headers (max-height 384px)
+- December 31, 2025: Added CSV export functionality for trades, opportunities, and missed opportunities
+- December 31, 2025: Fixed profit display to use profit_zar column directly
+- December 31, 2025: Fixed Simulated Trade Balances section not showing (status.bot.paper_floats access)
+- December 31, 2025: Added CLEAR_DB_ON_STARTUP environment variable for Railway deployments
 - December 31, 2025: Fixed paper trading simulation with proper float tracking and profit calculation
 - December 31, 2025: Updated default Net Edge threshold to 1.0% (was 0.4%)
 - December 31, 2025: Dashboard now displays all values in ZAR with percentages instead of bps
