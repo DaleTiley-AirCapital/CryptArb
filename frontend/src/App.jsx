@@ -1309,9 +1309,11 @@ function App() {
             <OpportunitiesTable opportunities={opportunities} />
           </div>
 
-          <div className={`bg-slate-800/30 rounded-lg p-6 border ${botMode === 'paper' ? 'border-amber-500/40' : 'border-amber-500/30'}`}>
+          <div className={`bg-slate-800/30 rounded-lg p-6 border ${botMode === 'paper' ? 'border-amber-500/40' : 'border-slate-700'}`}>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-amber-400">Missed Opportunities</h2>
+              <h2 className={`text-xl font-semibold ${botMode === 'paper' ? 'text-amber-400' : ''}`}>
+                {botMode === 'paper' ? 'Paper Missed Opportunities' : 'Missed Opportunities'}
+              </h2>
               <button
                 onClick={() => missedOpportunities.length > 0 && exportToCSV(missedOpportunities, 'missed_opportunities.csv')}
                 disabled={missedOpportunities.length === 0}
