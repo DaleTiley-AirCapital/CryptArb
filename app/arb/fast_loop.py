@@ -174,7 +174,9 @@ class FastArbitrageLoop:
             "luno_zar": luno_price.last,
             "luno_usd": luno_usd,
             "binance_usdt": binance_usdt,
+            "binance_usd": binance_usdt,  # backwards compatibility alias
             "usdt_zar_rate": usdt_zar_rate,
+            "usd_zar_rate": usdt_zar_rate,  # backwards compatibility alias
             "usdt_usd_rate": usdt_usd_rate,
             "luno_bid": luno_price.bid,
             "luno_ask": luno_price.ask,
@@ -218,7 +220,7 @@ class FastArbitrageLoop:
             binance_bid=binance_price.bid,
             binance_ask=binance_price.ask,
             binance_last=binance_price.last,
-            usd_zar_rate=spread_info.get("usdt_zar_rate", spread_info.get("usd_zar_rate", 17.0)),
+            usd_zar_rate=spread_info.get("usd_zar_rate", 17.0),
             spread_pct=spread_info.get("spread_percent", 0),
             gross_edge_bps=spread_info.get("gross_edge_bps", 0),
             net_edge_bps=spread_info.get("net_edge_bps", 0),

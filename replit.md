@@ -11,6 +11,7 @@ A market-neutral crypto arbitrage bot that monitors BTC price spreads between Lu
 - **In-memory cache**: Instant price reads for arb calculations
 - **Check interval**: 500ms arbitrage calculations
 - **Live FX rates**: USD/ZAR fetched from live APIs every 5 minutes
+- **USDT/USD rate**: Fetched from Binance USDC/USDT pair (1-minute cache) to account for USDT depeg
 
 ### Backend (FastAPI - Python)
 Located in `/app/`:
@@ -167,6 +168,10 @@ The bot maintains a rolling buffer of the last 6 price checks in memory for real
 **Data retention:** ~170k ticks/day at 500ms intervals. Consider archival strategy for long-term storage.
 
 ## Recent Changes
+- January 2, 2026: Added USDT/USD rate fetching from Binance to account for USDT depeg from USD (0.1-0.5% correction)
+- January 2, 2026: Updated spread calculations to use USDT/ZAR rate instead of USD/ZAR for accurate Binance pricing
+- January 2, 2026: Live Spread Monitor now shows Binance Bid/Ask values matching Luno format
+- January 2, 2026: Net Edge Analysis: Added extended time ranges (14d, 21d, 30d, 365d), replaced Combined stats with Raw Data Snapshot
 - January 2, 2026: Added dual-direction spread calculation: bot now computes BOTH L→B and B→L net edge on every tick
 - January 2, 2026: Added keepalive trading strategy with KEEPALIVE_THRESHOLD_BPS config (-20 bps default)
 - January 2, 2026: Updated Live Spread Monitor to show both direction spreads side-by-side in real-time
