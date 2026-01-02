@@ -1067,7 +1067,7 @@ function App() {
   const botRunning = status?.bot?.running
   const botMode = status?.bot?.mode || config?.mode || 'paper'
   const uptime = status?.bot?.uptime_seconds
-  const usdZarRate = status?.bot?.last_opportunity?.usd_zar_rate || config?.usd_zar_rate || 17
+  const usdZarRate = status?.bot?.last_opportunity?.usdt_zar_rate || status?.bot?.last_opportunity?.usd_zar_rate || config?.usd_zar_rate || 17
   const totalPnLZar = (summary?.all_time?.total_profit_usd || 0) * usdZarRate
   const totalTrades = summary?.all_time?.total_trades || 0
   const todayPnLZar = (summary?.today?.profit_usd || 0) * usdZarRate
@@ -1204,14 +1204,18 @@ function App() {
                   </div>
                   <div>
                     <div className="text-slate-400 text-sm">Binance BTC/USDT</div>
-                    <div className="font-mono text-lg">R {(lastOpportunity.binance_usd * lastOpportunity.usd_zar_rate)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) || 'N/A'}</div>
+                    <div className="font-mono text-lg">R {((lastOpportunity.binance_usdt || lastOpportunity.binance_usd) * (lastOpportunity.usdt_zar_rate || lastOpportunity.usd_zar_rate))?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) || 'N/A'}</div>
                     <div className="text-slate-500 text-xs">
-                      ${lastOpportunity.binance_usd?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} USD
+                      Bid: ${lastOpportunity.binance_bid?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} | Ask: ${lastOpportunity.binance_ask?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </div>
+                    <div className="text-slate-500 text-xs">${(lastOpportunity.binance_usdt || lastOpportunity.binance_usd)?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} USDT</div>
                   </div>
                 </div>
                 <div className="text-center text-xs text-slate-400 border-t border-slate-700 pt-2">
-                  USD/ZAR Rate: {lastOpportunity.usd_zar_rate?.toFixed(4) || 'N/A'} (Live)
+                  USDT/ZAR Rate: {(lastOpportunity.usdt_zar_rate || lastOpportunity.usd_zar_rate)?.toFixed(4) || 'N/A'} (Live)
+                  {lastOpportunity.usdt_usd_rate && lastOpportunity.usdt_usd_rate !== 1 && (
+                    <span className="ml-2">| USDT/USD: {lastOpportunity.usdt_usd_rate?.toFixed(6)}</span>
+                  )}
                 </div>
                 <div className="border-t border-slate-700 pt-4">
                   <div className="grid grid-cols-2 gap-4 mb-3">
