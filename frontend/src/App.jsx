@@ -679,6 +679,21 @@ function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
   const [rawData, setRawData] = useState(null)
   const [loadingRaw, setLoadingRaw] = useState(false)
 
+  useEffect(() => {
+    const loadInitialData = async () => {
+      setLoadingRaw(true)
+      try {
+        const result = await fetchNetEdgeRawData(hours, 100)
+        setRawData(result)
+      } catch (err) {
+        console.error('Error loading raw data:', err)
+      } finally {
+        setLoadingRaw(false)
+      }
+    }
+    loadInitialData()
+  }, [hours])
+
   const timeRanges = [
     { label: '1h', value: 1 },
     { label: '6h', value: 6 },
@@ -810,140 +825,61 @@ function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
 
       <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
         <div className="flex justify-between items-center mb-4">
-          <h4 className="text-sm font-semibold text-slate-400">Raw Data Snapshot (Last 10 Ticks)</h4>
+          <h4 className="text-sm font-semibold text-slate-400">Raw Tick Data - Both Directions (Last 15 Ticks)</h4>
           <button
             onClick={handleToggleRawData}
             className="text-xs px-2 py-1 bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 rounded border border-blue-600/30"
           >
-            {showRawData ? 'Hide Detailed Data' : 'View All'}
+            {showRawData ? 'Show Less' : 'View All'}
           </button>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-96 overflow-y-auto">
           <table className="w-full text-xs">
-            <thead>
+            <thead className="bg-slate-800 sticky top-0">
               <tr className="border-b border-slate-700">
-                <th className="text-left p-1.5 text-slate-500">Time</th>
-                <th className="text-left p-1.5 text-slate-500">Dir</th>
-                <th className="text-right p-1.5 text-slate-500">Net Edge</th>
-                <th className="text-center p-1.5 text-slate-500">Profitable</th>
+                <th className="text-left p-2 text-slate-400">Timestamp</th>
+                <th className="text-left p-2 text-slate-400">Direction</th>
+                <th className="text-right p-2 text-slate-400">Luno (ZAR)</th>
+                <th className="text-right p-2 text-slate-400">Binance (USDT)</th>
+                <th className="text-right p-2 text-slate-400">USDT/ZAR</th>
+                <th className="text-right p-2 text-slate-400">Gross %</th>
+                <th className="text-right p-2 text-slate-400">Net %</th>
+                <th className="text-center p-2 text-slate-400">Profitable</th>
               </tr>
             </thead>
             <tbody>
-              {(rawData?.ticks || []).slice(0, 10).map((tick, idx) => (
-                <tr key={idx} className="border-b border-slate-800/50">
-                  <td className="p-1.5 font-mono text-slate-400">{tick.timestamp?.split('T')[1]?.split('.')[0] || '-'}</td>
-                  <td className={`p-1.5 ${tick.direction === 'binance_to_luno' ? 'text-blue-400' : 'text-green-400'}`}>
+              {(rawData?.ticks || []).slice(0, showRawData ? 500 : 15).map((tick, idx) => (
+                <tr key={idx} className="border-b border-slate-800 hover:bg-slate-800/50">
+                  <td className="p-2 font-mono text-slate-300">{tick.timestamp?.split('T')[1]?.split('.')[0] || '-'}</td>
+                  <td className={`p-2 ${tick.direction === 'binance_to_luno' ? 'text-blue-400' : 'text-green-400'}`}>
                     {tick.direction === 'binance_to_luno' ? 'B→L' : 'L→B'}
                   </td>
-                  <td className={`p-1.5 text-right font-mono ${tick.net_edge_bps >= (currentThresholdBps || 100) ? 'text-green-400' : 'text-slate-400'}`}>
+                  <td className="p-2 text-right font-mono text-slate-300">R{tick.luno_last?.toFixed(0)}</td>
+                  <td className="p-2 text-right font-mono text-slate-300">${tick.binance_last?.toFixed(2)}</td>
+                  <td className="p-2 text-right font-mono text-slate-300">{tick.usd_zar_rate?.toFixed(2)}</td>
+                  <td className="p-2 text-right font-mono text-slate-300">{(tick.gross_edge_bps / 100)?.toFixed(2)}%</td>
+                  <td className={`p-2 text-right font-mono ${tick.net_edge_bps >= 100 ? 'text-green-400' : tick.net_edge_bps >= 50 ? 'text-amber-400' : 'text-slate-400'}`}>
                     {(tick.net_edge_bps / 100)?.toFixed(2)}%
                   </td>
-                  <td className="p-1.5 text-center">
-                    {tick.net_edge_bps >= (currentThresholdBps || 100) ? (
-                      <span className="text-green-400">✓</span>
-                    ) : (
-                      <span className="text-slate-600">✕</span>
-                    )}
+                  <td className="p-2 text-center">
+                    {tick.is_profitable ? <span className="text-green-400">✓</span> : <span className="text-slate-500">-</span>}
                   </td>
                 </tr>
               ))}
               {(!rawData?.ticks || rawData.ticks.length === 0) && (
                 <tr>
-                  <td colSpan="4" className="p-4 text-center text-slate-500 italic">
-                    {loadingRaw ? 'Loading snapshot...' : 'No data available. Click "View All" or start bot.'}
+                  <td colSpan="8" className="p-4 text-center text-slate-500 italic">
+                    {loadingRaw ? 'Loading data...' : 'No data available. Start bot to collect ticks.'}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+        {showRawData && rawData?.ticks?.length > 500 && (
+          <p className="mt-2 text-xs text-slate-500">Showing 500 of {rawData.count} records. Export to see all data.</p>
+        )}
       </div>
-
-      <div>
-        <h4 className="text-sm text-slate-400 mb-3">Threshold Impact Analysis</h4>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-700">
-                <th className="text-left p-2 text-slate-400">Threshold</th>
-                <th className="text-right p-2 text-slate-400">Opportunities</th>
-                <th className="text-right p-2 text-slate-400">% Captured</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(opportunities_per_threshold).map(([threshold, count]) => {
-                const thresholdBps = thresholdLabels[threshold]
-                const isCurrentThreshold = currentThresholdBps && Math.abs(thresholdBps - currentThresholdBps) < 5
-                const pctCaptured = total_opportunities > 0 ? (count / total_opportunities * 100).toFixed(1) : 0
-
-                return (
-                  <tr
-                    key={threshold}
-                    className={`border-b border-slate-800 ${isCurrentThreshold ? 'bg-blue-500/20' : 'hover:bg-slate-800/50'}`}
-                  >
-                    <td className="p-2">
-                      <span className={isCurrentThreshold ? 'text-blue-400 font-semibold' : ''}>
-                        {threshold}
-                        {isCurrentThreshold && <span className="ml-2 text-xs">(current)</span>}
-                      </span>
-                    </td>
-                    <td className="p-2 text-right font-mono text-green-400">{count}</td>
-                    <td className="p-2 text-right font-mono text-slate-300">{pctCaptured}%</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-3 text-xs text-slate-500">
-          Shows how many opportunities you would have captured at each threshold level.
-        </p>
-      </div>
-
-      {showRawData && rawData?.ticks && (
-        <div>
-          <h4 className="text-sm text-slate-400 mb-3">Raw Tick Data ({rawData.count} records)</h4>
-          <div className="overflow-x-auto max-h-96 overflow-y-auto border border-slate-700 rounded-lg">
-            <table className="w-full text-xs">
-              <thead className="bg-slate-800 sticky top-0">
-                <tr className="border-b border-slate-700">
-                  <th className="text-left p-2 text-slate-400">Timestamp</th>
-                  <th className="text-left p-2 text-slate-400">Direction</th>
-                  <th className="text-right p-2 text-slate-400">Luno (ZAR)</th>
-                  <th className="text-right p-2 text-slate-400">Binance (USD)</th>
-                  <th className="text-right p-2 text-slate-400">USD/ZAR</th>
-                  <th className="text-right p-2 text-slate-400">Gross %</th>
-                  <th className="text-right p-2 text-slate-400">Net %</th>
-                  <th className="text-center p-2 text-slate-400">Profitable</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rawData.ticks.slice(0, 500).map((tick, idx) => (
-                  <tr key={idx} className="border-b border-slate-800 hover:bg-slate-800/50">
-                    <td className="p-2 font-mono text-slate-300">{tick.timestamp?.split('T')[1]?.split('.')[0] || '-'}</td>
-                    <td className={`p-2 ${tick.direction === 'binance_to_luno' ? 'text-blue-400' : 'text-green-400'}`}>
-                      {tick.direction === 'binance_to_luno' ? 'B→L' : 'L→B'}
-                    </td>
-                    <td className="p-2 text-right font-mono text-slate-300">R{tick.luno_last?.toFixed(0)}</td>
-                    <td className="p-2 text-right font-mono text-slate-300">${tick.binance_last?.toFixed(2)}</td>
-                    <td className="p-2 text-right font-mono text-slate-300">{tick.usd_zar_rate?.toFixed(2)}</td>
-                    <td className="p-2 text-right font-mono text-slate-300">{(tick.gross_edge_bps / 100)?.toFixed(2)}%</td>
-                    <td className={`p-2 text-right font-mono ${tick.net_edge_bps >= 100 ? 'text-green-400' : tick.net_edge_bps >= 50 ? 'text-amber-400' : 'text-slate-400'}`}>
-                      {(tick.net_edge_bps / 100)?.toFixed(2)}%
-                    </td>
-                    <td className="p-2 text-center">
-                      {tick.is_profitable ? <span className="text-green-400">✓</span> : <span className="text-slate-500">-</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {rawData.ticks.length > 500 && (
-            <p className="mt-2 text-xs text-slate-500">Showing 500 of {rawData.count} records. Export to see all data.</p>
-          )}
-        </div>
-      )}
     </div>
   )
 }
