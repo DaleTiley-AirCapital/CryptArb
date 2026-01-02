@@ -16,6 +16,7 @@ class Config:
     
     SPREAD_THRESHOLD: float = float(os.environ.get("SPREAD_THRESHOLD", "0.5"))
     MIN_NET_EDGE_BPS: float = float(os.environ.get("MIN_NET_EDGE_BPS", "100"))
+    KEEPALIVE_THRESHOLD_BPS: float = float(os.environ.get("KEEPALIVE_THRESHOLD_BPS", "-20"))
     MAX_TRADE_SIZE_BTC: float = float(os.environ.get("MAX_TRADE_SIZE_BTC", "0.01"))
     MIN_TRADE_SIZE_BTC: float = float(os.environ.get("MIN_TRADE_SIZE_BTC", "0.0001"))
     MAX_TRADE_ZAR: float = float(os.environ.get("MAX_TRADE_ZAR", "5000"))
@@ -74,7 +75,8 @@ class Config:
             "rebalance_enabled": self._runtime_overrides.get("REBALANCE_ENABLED", self.REBALANCE_ENABLED),
             "rebalance_threshold_bps": self._runtime_overrides.get("REBALANCE_THRESHOLD_BPS", self.REBALANCE_THRESHOLD_BPS),
             "rebalance_trigger_count": self._runtime_overrides.get("REBALANCE_TRIGGER_COUNT", self.REBALANCE_TRIGGER_COUNT),
-            "error_stop_count": self._runtime_overrides.get("ERROR_STOP_COUNT", self.ERROR_STOP_COUNT)
+            "error_stop_count": self._runtime_overrides.get("ERROR_STOP_COUNT", self.ERROR_STOP_COUNT),
+            "keepalive_threshold_bps": self._runtime_overrides.get("KEEPALIVE_THRESHOLD_BPS", self.KEEPALIVE_THRESHOLD_BPS)
         }
 
 config = Config()

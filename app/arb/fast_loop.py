@@ -32,6 +32,8 @@ class TickData:
     min_edge_threshold_bps: int
     slippage_bps: int
     fee_bps: int
+    l2b_net_edge_bps: float = 0.0
+    b2l_net_edge_bps: float = 0.0
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -89,50 +91,27 @@ class FastArbitrageLoop:
     def get_setting(self, key: str, default=None):
         return config.get(key) if config.get(key) is not None else getattr(config, key, default)
     
-    async def calculate_spread(self, luno_price: PriceData, binance_price: PriceData) -> dict:
-        usd_zar_rate = await fx_service.get_usd_zar_rate()
-        slippage_bps = self.get_setting("SLIPPAGE_BPS_BUFFER", 10)
-        luno_fee = self.get_setting("LUNO_TRADING_FEE", 0.001)
-        binance_fee = self.get_setting("BINANCE_TRADING_FEE", 0.001)
-        min_net_edge = self.get_setting("MIN_NET_EDGE_BPS", 40)
+    def _calculate_single_direction(self, direction: str, luno_price: PriceData, binance_price: PriceData, 
+                                      usd_zar_rate: float, slippage_factor: float, luno_fee: float, 
+                                      binance_fee: float, min_net_edge: float) -> dict:
+        total_fee_bps = (luno_fee + binance_fee) * 10000
         
-        if luno_price.last == 0 or binance_price.last == 0:
-            return {
-                "direction": "unknown",
-                "spread_percent": 0,
-                "gross_edge_bps": 0,
-                "net_edge_bps": 0,
-                "is_profitable": False,
-                "error": "Unable to fetch prices from one or both exchanges"
-            }
-        
-        luno_usd = luno_price.last / usd_zar_rate
-        binance_usd = binance_price.last
-        slippage_factor = slippage_bps / 10000
-        
-        if binance_usd > luno_usd:
-            direction = "luno_to_binance"
+        if direction == "luno_to_binance":
             buy_exchange = "luno"
             sell_exchange = "binance"
             buy_price = luno_price.ask * (1 + slippage_factor)
             sell_price = binance_price.bid * (1 - slippage_factor)
-            gross_spread = (sell_price - (buy_price / usd_zar_rate)) / (buy_price / usd_zar_rate)
+            gross_spread = (sell_price - (buy_price / usd_zar_rate)) / (buy_price / usd_zar_rate) if buy_price > 0 else 0
         else:
-            direction = "binance_to_luno"
             buy_exchange = "binance"
             sell_exchange = "luno"
             buy_price = binance_price.ask * (1 + slippage_factor)
             sell_price = luno_price.bid * (1 - slippage_factor)
-            gross_spread = ((sell_price / usd_zar_rate) - buy_price) / buy_price
+            gross_spread = ((sell_price / usd_zar_rate) - buy_price) / buy_price if buy_price > 0 else 0
         
         gross_edge_bps = gross_spread * 10000
-        total_fee_bps = (luno_fee + binance_fee) * 10000
         net_edge_bps = gross_edge_bps - total_fee_bps
-        
         spread_percent = gross_spread * 100
-        total_fees = (luno_fee + binance_fee) * 100
-        net_spread = spread_percent - total_fees
-        
         is_profitable = net_edge_bps >= min_net_edge
         
         return {
@@ -140,11 +119,57 @@ class FastArbitrageLoop:
             "spread_percent": spread_percent,
             "gross_edge_bps": gross_edge_bps,
             "net_edge_bps": net_edge_bps,
-            "net_spread": net_spread,
             "buy_exchange": buy_exchange,
             "sell_exchange": sell_exchange,
             "buy_price": buy_price,
             "sell_price": sell_price,
+            "is_profitable": is_profitable
+        }
+
+    async def calculate_spread(self, luno_price: PriceData, binance_price: PriceData) -> dict:
+        usd_zar_rate = await fx_service.get_usd_zar_rate()
+        slippage_bps = self.get_setting("SLIPPAGE_BPS_BUFFER", 10)
+        luno_fee = self.get_setting("LUNO_TRADING_FEE", 0.001)
+        binance_fee = self.get_setting("BINANCE_TRADING_FEE", 0.001)
+        min_net_edge = self.get_setting("MIN_NET_EDGE_BPS", 40)
+        
+        error_result = {
+            "direction": "unknown",
+            "spread_percent": 0,
+            "gross_edge_bps": 0,
+            "net_edge_bps": 0,
+            "is_profitable": False,
+            "error": "Unable to fetch prices from one or both exchanges",
+            "both_directions": None
+        }
+        
+        if luno_price.last == 0 or binance_price.last == 0:
+            return error_result
+        
+        luno_usd = luno_price.last / usd_zar_rate
+        binance_usd = binance_price.last
+        slippage_factor = slippage_bps / 10000
+        
+        l2b = self._calculate_single_direction("luno_to_binance", luno_price, binance_price, 
+                                                usd_zar_rate, slippage_factor, luno_fee, binance_fee, min_net_edge)
+        b2l = self._calculate_single_direction("binance_to_luno", luno_price, binance_price, 
+                                                usd_zar_rate, slippage_factor, luno_fee, binance_fee, min_net_edge)
+        
+        if l2b["net_edge_bps"] >= b2l["net_edge_bps"]:
+            best = l2b
+        else:
+            best = b2l
+        
+        return {
+            "direction": best["direction"],
+            "spread_percent": best["spread_percent"],
+            "gross_edge_bps": best["gross_edge_bps"],
+            "net_edge_bps": best["net_edge_bps"],
+            "net_spread": best["spread_percent"] - (luno_fee + binance_fee) * 100,
+            "buy_exchange": best["buy_exchange"],
+            "sell_exchange": best["sell_exchange"],
+            "buy_price": best["buy_price"],
+            "sell_price": best["sell_price"],
             "luno_zar": luno_price.last,
             "luno_usd": luno_usd,
             "binance_usd": binance_usd,
@@ -153,7 +178,23 @@ class FastArbitrageLoop:
             "luno_ask": luno_price.ask,
             "binance_bid": binance_price.bid,
             "binance_ask": binance_price.ask,
-            "is_profitable": is_profitable
+            "is_profitable": best["is_profitable"],
+            "both_directions": {
+                "luno_to_binance": {
+                    "net_edge_bps": l2b["net_edge_bps"],
+                    "gross_edge_bps": l2b["gross_edge_bps"],
+                    "is_profitable": l2b["is_profitable"],
+                    "buy_price": l2b["buy_price"],
+                    "sell_price": l2b["sell_price"],
+                },
+                "binance_to_luno": {
+                    "net_edge_bps": b2l["net_edge_bps"],
+                    "gross_edge_bps": b2l["gross_edge_bps"],
+                    "is_profitable": b2l["is_profitable"],
+                    "buy_price": b2l["buy_price"],
+                    "sell_price": b2l["sell_price"],
+                }
+            }
         }
     
     def create_tick_from_spread(self, luno_price: PriceData, binance_price: PriceData, spread_info: dict) -> TickData:
@@ -162,6 +203,10 @@ class FastArbitrageLoop:
         luno_fee = self.get_setting("LUNO_TRADING_FEE", 0.001)
         binance_fee = self.get_setting("BINANCE_TRADING_FEE", 0.001)
         total_fee_bps = int((luno_fee + binance_fee) * 10000)
+        
+        both = spread_info.get("both_directions", {})
+        l2b_edge = both.get("luno_to_binance", {}).get("net_edge_bps", 0)
+        b2l_edge = both.get("binance_to_luno", {}).get("net_edge_bps", 0)
         
         return TickData(
             timestamp=datetime.utcnow(),
@@ -180,6 +225,8 @@ class FastArbitrageLoop:
             min_edge_threshold_bps=int(min_net_edge),
             slippage_bps=int(slippage_bps),
             fee_bps=total_fee_bps,
+            l2b_net_edge_bps=l2b_edge,
+            b2l_net_edge_bps=b2l_edge,
         )
     
     def add_tick_to_buffer(self, tick: TickData):
@@ -250,6 +297,8 @@ class FastArbitrageLoop:
                 "net_edge_bps": t.net_edge_bps,
                 "direction": t.direction,
                 "is_profitable": t.is_profitable,
+                "l2b_net_edge_bps": t.l2b_net_edge_bps,
+                "b2l_net_edge_bps": t.b2l_net_edge_bps,
             }
             for t in list(self._tick_buffer)
         ]
@@ -352,6 +401,109 @@ class FastArbitrageLoop:
     
     def get_opposite_direction(self, direction: str) -> str:
         return "binance_to_luno" if direction == "luno_to_binance" else "luno_to_binance"
+    
+    async def select_trade_direction(self, spread_info: dict, luno_price: PriceData, binance_price: PriceData) -> Optional[dict]:
+        """
+        Select best trade direction using dual-direction analysis with keepalive logic.
+        
+        Strategy:
+        1. If best direction is profitable AND tradeable → execute it
+        2. If best direction is profitable but NOT tradeable → check if opposite is above keepalive threshold
+        3. Keepalive trades help maintain inventory cycling without BTC transfers
+        
+        Returns dict with: direction, spread_info, trade_type ('profitable' or 'keepalive')
+        Or None if no trade should be executed.
+        """
+        if not config.is_paper_mode():
+            if spread_info["is_profitable"]:
+                return {
+                    "direction": spread_info["direction"],
+                    "spread_info": spread_info,
+                    "trade_type": "profitable"
+                }
+            return None
+        
+        both = spread_info.get("both_directions", {})
+        if not both:
+            return None
+        
+        min_edge = self.get_setting("MIN_NET_EDGE_BPS", 100)
+        keepalive_edge = self.get_setting("KEEPALIVE_THRESHOLD_BPS", -20)
+        
+        l2b_data = both.get("luno_to_binance", {})
+        b2l_data = both.get("binance_to_luno", {})
+        
+        l2b_edge = l2b_data.get("net_edge_bps", -9999)
+        b2l_edge = b2l_data.get("net_edge_bps", -9999)
+        
+        l2b_profitable = l2b_edge >= min_edge
+        b2l_profitable = b2l_edge >= min_edge
+        l2b_keepalive = l2b_edge >= keepalive_edge
+        b2l_keepalive = b2l_edge >= keepalive_edge
+        
+        can_l2b, l2b_reason = self.can_execute_paper_trade("luno_to_binance")
+        can_b2l, b2l_reason = self.can_execute_paper_trade("binance_to_luno")
+        
+        self._inventory_status["can_trade_luno_to_binance"] = can_l2b
+        self._inventory_status["can_trade_binance_to_luno"] = can_b2l
+        self._inventory_status["block_reason_l2b"] = l2b_reason if not can_l2b else None
+        self._inventory_status["block_reason_b2l"] = b2l_reason if not can_b2l else None
+        
+        if l2b_profitable and can_l2b:
+            return {
+                "direction": "luno_to_binance",
+                "spread_info": self._build_direction_spread_info(spread_info, "luno_to_binance", l2b_data),
+                "trade_type": "profitable"
+            }
+        
+        if b2l_profitable and can_b2l:
+            return {
+                "direction": "binance_to_luno",
+                "spread_info": self._build_direction_spread_info(spread_info, "binance_to_luno", b2l_data),
+                "trade_type": "profitable"
+            }
+        
+        if l2b_profitable and not can_l2b and b2l_keepalive and can_b2l:
+            logger.info(f"[KEEPALIVE] L2B profitable ({l2b_edge:.1f}bps) but blocked. B2L keepalive at {b2l_edge:.1f}bps")
+            return {
+                "direction": "binance_to_luno",
+                "spread_info": self._build_direction_spread_info(spread_info, "binance_to_luno", b2l_data),
+                "trade_type": "keepalive"
+            }
+        
+        if b2l_profitable and not can_b2l and l2b_keepalive and can_l2b:
+            logger.info(f"[KEEPALIVE] B2L profitable ({b2l_edge:.1f}bps) but blocked. L2B keepalive at {l2b_edge:.1f}bps")
+            return {
+                "direction": "luno_to_binance",
+                "spread_info": self._build_direction_spread_info(spread_info, "luno_to_binance", l2b_data),
+                "trade_type": "keepalive"
+            }
+        
+        return None
+    
+    def _build_direction_spread_info(self, base_spread: dict, direction: str, direction_data: dict) -> dict:
+        """Build a complete spread_info dict for a specific direction."""
+        return {
+            "direction": direction,
+            "spread_percent": direction_data.get("gross_edge_bps", 0) / 100,
+            "gross_edge_bps": direction_data.get("gross_edge_bps", 0),
+            "net_edge_bps": direction_data.get("net_edge_bps", 0),
+            "net_spread": direction_data.get("net_edge_bps", 0) / 100,
+            "buy_exchange": "luno" if direction == "luno_to_binance" else "binance",
+            "sell_exchange": "binance" if direction == "luno_to_binance" else "luno",
+            "buy_price": direction_data.get("buy_price", 0),
+            "sell_price": direction_data.get("sell_price", 0),
+            "luno_zar": base_spread.get("luno_zar", 0),
+            "luno_usd": base_spread.get("luno_usd", 0),
+            "binance_usd": base_spread.get("binance_usd", 0),
+            "usd_zar_rate": base_spread.get("usd_zar_rate", 17.0),
+            "luno_bid": base_spread.get("luno_bid", 0),
+            "luno_ask": base_spread.get("luno_ask", 0),
+            "binance_bid": base_spread.get("binance_bid", 0),
+            "binance_ask": base_spread.get("binance_ask", 0),
+            "is_profitable": direction_data.get("is_profitable", False),
+            "both_directions": base_spread.get("both_directions"),
+        }
     
     async def check_rebalance_opportunity(self, spread_info: dict) -> bool:
         if not self.should_rebalance():
@@ -714,9 +866,12 @@ class FastArbitrageLoop:
                     f"Check: {check_time:.0f}ms"
                 )
             
-            if spread_info["is_profitable"]:
-                self._stats["opportunities_found"] += 1
-                direction = spread_info["direction"]
+            trade_decision = await self.select_trade_direction(spread_info, luno_price, binance_price)
+            
+            if trade_decision:
+                direction = trade_decision["direction"]
+                trade_spread = trade_decision["spread_info"]
+                trade_type = trade_decision["trade_type"]
                 
                 if self._inventory_status["last_profitable_direction"] == direction:
                     self._inventory_status["consecutive_same_direction"] += 1
@@ -729,29 +884,32 @@ class FastArbitrageLoop:
                     if time_since_trade < self._min_trade_interval:
                         return
                 
-                if config.is_paper_mode():
-                    can_trade, reason = self.can_execute_paper_trade(direction)
-                    if not can_trade:
-                        self._stats["skipped_insufficient_balance"] += 1
-                        self.log_opportunity(spread_info, was_executed=False, reason_skipped=reason)
-                        
-                        rebalanced = await self.check_rebalance_opportunity(spread_info)
-                        if rebalanced:
-                            logger.info(f"[PAPER] Rebalance executed, now able to trade in stuck direction")
-                        return
+                self._stats["opportunities_found"] += 1
+                
                 logger.info(
-                    f"OPPORTUNITY! Direction: {direction}, "
-                    f"Net Edge: {spread_info['net_edge_bps']:.1f}bps ({spread_info['net_edge_bps']/100:.2f}%)"
+                    f"{'KEEPALIVE' if trade_type == 'keepalive' else 'OPPORTUNITY'}! Direction: {direction}, "
+                    f"Net Edge: {trade_spread['net_edge_bps']:.1f}bps ({trade_spread['net_edge_bps']/100:.2f}%), "
+                    f"Type: {trade_type}"
                 )
                 
-                btc_amount, trade_size_zar = self.calculate_trade_size(spread_info, spread_info['direction'])
-                trade = await self.execute_hedged_trade_parallel(spread_info, btc_amount)
+                btc_amount, trade_size_zar = self.calculate_trade_size(trade_spread, direction)
+                trade = await self.execute_hedged_trade_parallel(trade_spread, btc_amount)
                 
                 if trade:
                     self._last_trade_time = datetime.utcnow()
-                    self.log_opportunity(spread_info, was_executed=True)
+                    self.log_opportunity(trade_spread, was_executed=True)
+                    if trade_type == "keepalive":
+                        self._inventory_status["rebalance_trades_executed"] += 1
                 else:
-                    self.log_opportunity(spread_info, was_executed=False, reason_skipped="execution_failed")
+                    self.log_opportunity(trade_spread, was_executed=False, reason_skipped="execution_failed")
+            else:
+                both = spread_info.get("both_directions", {})
+                if both:
+                    l2b = both.get("luno_to_binance", {})
+                    b2l = both.get("binance_to_luno", {})
+                    if l2b.get("is_profitable") or b2l.get("is_profitable"):
+                        self._stats["skipped_insufficient_balance"] += 1
+                        self.log_opportunity(spread_info, was_executed=False, reason_skipped="insufficient_balance_both_directions")
             
         except Exception as e:
             logger.error(f"Error in arbitrage iteration: {e}")
