@@ -624,13 +624,13 @@ function DirectionStats({ data, label, colorClass }) {
     )
   }
 
-  const { stats, distribution, opportunities_per_threshold, count } = data
+  const { stats, distribution, count } = data
   const distributionValues = Object.values(distribution || {})
   const maxBucketCount = distributionValues.length > 0 ? Math.max(...distributionValues) : 0
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
         <div className="bg-slate-700/50 rounded-lg p-2">
           <div className="text-slate-400 text-xs">Min</div>
           <div className={`text-sm font-mono ${colorClass}`}>{stats?.min_net_edge_pct?.toFixed(2) || 0}%</div>
@@ -642,6 +642,10 @@ function DirectionStats({ data, label, colorClass }) {
         <div className="bg-slate-700/50 rounded-lg p-2">
           <div className="text-slate-400 text-xs">Avg</div>
           <div className={`text-sm font-mono ${colorClass}`}>{stats?.avg_net_edge_pct?.toFixed(2) || 0}%</div>
+        </div>
+        <div className="bg-slate-700/50 rounded-lg p-2">
+          <div className="text-slate-400 text-xs">Median</div>
+          <div className={`text-sm font-mono ${colorClass}`}>{stats?.median_net_edge_pct?.toFixed(2) || 0}%</div>
         </div>
         <div className="bg-slate-700/50 rounded-lg p-2">
           <div className="text-slate-400 text-xs">Count</div>
@@ -683,6 +687,10 @@ function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
     { label: '48h', value: 48 },
     { label: '72h', value: 72 },
     { label: '7d', value: 168 },
+    { label: '14d', value: 336 },
+    { label: '21d', value: 504 },
+    { label: 'Month', value: 720 },
+    { label: 'Year', value: 8760 },
   ]
 
   const loadRawData = async () => {
@@ -800,25 +808,54 @@ function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
         </div>
       </div>
 
-      <div className="bg-slate-800/50 rounded-lg p-4">
-        <h4 className="text-sm text-slate-400 mb-3">Combined Stats ({total_opportunities} total)</h4>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-slate-700/50 rounded-lg p-3">
-            <div className="text-slate-400 text-xs">Min Net Edge</div>
-            <div className="text-lg font-mono text-blue-400">{stats.min_net_edge_pct?.toFixed(2)}%</div>
-          </div>
-          <div className="bg-slate-700/50 rounded-lg p-3">
-            <div className="text-slate-400 text-xs">Max Net Edge</div>
-            <div className="text-lg font-mono text-green-400">{stats.max_net_edge_pct?.toFixed(2)}%</div>
-          </div>
-          <div className="bg-slate-700/50 rounded-lg p-3">
-            <div className="text-slate-400 text-xs">Average</div>
-            <div className="text-lg font-mono text-blue-400">{stats.avg_net_edge_pct?.toFixed(2)}%</div>
-          </div>
-          <div className="bg-slate-700/50 rounded-lg p-3">
-            <div className="text-slate-400 text-xs">Median</div>
-            <div className="text-lg font-mono text-blue-400">{stats.median_net_edge_pct?.toFixed(2)}%</div>
-          </div>
+      <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+        <div className="flex justify-between items-center mb-4">
+          <h4 className="text-sm font-semibold text-slate-400">Raw Data Snapshot (Last 10 Ticks)</h4>
+          <button
+            onClick={handleToggleRawData}
+            className="text-xs px-2 py-1 bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 rounded border border-blue-600/30"
+          >
+            {showRawData ? 'Hide Detailed Data' : 'View All'}
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-slate-700">
+                <th className="text-left p-1.5 text-slate-500">Time</th>
+                <th className="text-left p-1.5 text-slate-500">Dir</th>
+                <th className="text-right p-1.5 text-slate-500">Net Edge</th>
+                <th className="text-center p-1.5 text-slate-500">Profitable</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(rawData?.ticks || []).slice(0, 10).map((tick, idx) => (
+                <tr key={idx} className="border-b border-slate-800/50">
+                  <td className="p-1.5 font-mono text-slate-400">{tick.timestamp?.split('T')[1]?.split('.')[0] || '-'}</td>
+                  <td className={`p-1.5 ${tick.direction === 'binance_to_luno' ? 'text-blue-400' : 'text-green-400'}`}>
+                    {tick.direction === 'binance_to_luno' ? 'B→L' : 'L→B'}
+                  </td>
+                  <td className={`p-1.5 text-right font-mono ${tick.net_edge_bps >= (currentThresholdBps || 100) ? 'text-green-400' : 'text-slate-400'}`}>
+                    {(tick.net_edge_bps / 100)?.toFixed(2)}%
+                  </td>
+                  <td className="p-1.5 text-center">
+                    {tick.net_edge_bps >= (currentThresholdBps || 100) ? (
+                      <span className="text-green-400">✓</span>
+                    ) : (
+                      <span className="text-slate-600">✕</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {(!rawData?.ticks || rawData.ticks.length === 0) && (
+                <tr>
+                  <td colSpan="4" className="p-4 text-center text-slate-500 italic">
+                    {loadingRaw ? 'Loading snapshot...' : 'No data available. Click "View All" or start bot.'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
