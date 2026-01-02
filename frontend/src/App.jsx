@@ -1173,8 +1173,15 @@ function App() {
           />
           <StatusCard
             title="Net Edge"
-            value={lastOpportunity?.net_edge_bps ? `${(lastOpportunity.net_edge_bps / 100).toFixed(2)}%` : 'N/A'}
-            subtitle={lastOpportunity?.direction?.replace('_to_', ' → ')}
+            value={(() => {
+              const l2b = lastOpportunity?.both_directions?.luno_to_binance?.net_edge_bps;
+              const b2l = lastOpportunity?.both_directions?.binance_to_luno?.net_edge_bps;
+              if (l2b !== undefined && b2l !== undefined) {
+                return `L→B: ${(l2b/100).toFixed(2)}% | B→L: ${(b2l/100).toFixed(2)}%`;
+              }
+              return lastOpportunity?.net_edge_bps ? `${(lastOpportunity.net_edge_bps / 100).toFixed(2)}%` : 'N/A';
+            })()}
+            subtitle={`Best: ${lastOpportunity?.direction?.replace('_to_', ' → ') || 'N/A'}`}
             color="blue"
           />
         </div>
@@ -1207,15 +1214,39 @@ function App() {
                   USD/ZAR Rate: {lastOpportunity.usd_zar_rate?.toFixed(4) || 'N/A'} (Live)
                 </div>
                 <div className="border-t border-slate-700 pt-4">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <div className="text-slate-400 text-xs">Gross Edge</div>
-                      <div className="font-semibold">{(lastOpportunity.gross_edge_bps / 100)?.toFixed(2) || '0'}%</div>
+                  <div className="grid grid-cols-2 gap-4 mb-3">
+                    <div className="bg-blue-500/10 border border-blue-500/30 rounded p-3 text-center">
+                      <div className="text-blue-400 text-xs mb-1">L → B (Luno to Binance)</div>
+                      {(() => {
+                        const l2b = lastOpportunity?.both_directions?.luno_to_binance;
+                        const edge = l2b?.net_edge_bps ?? 0;
+                        return (
+                          <div className={`text-xl font-mono font-bold ${edge >= 100 ? 'text-green-400' : edge >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                            {(edge / 100).toFixed(2)}%
+                          </div>
+                        );
+                      })()}
+                      <div className="text-slate-500 text-xs mt-1">Net Edge</div>
                     </div>
+                    <div className="bg-purple-500/10 border border-purple-500/30 rounded p-3 text-center">
+                      <div className="text-purple-400 text-xs mb-1">B → L (Binance to Luno)</div>
+                      {(() => {
+                        const b2l = lastOpportunity?.both_directions?.binance_to_luno;
+                        const edge = b2l?.net_edge_bps ?? 0;
+                        return (
+                          <div className={`text-xl font-mono font-bold ${edge >= 100 ? 'text-green-400' : edge >= 0 ? 'text-purple-400' : 'text-red-400'}`}>
+                            {(edge / 100).toFixed(2)}%
+                          </div>
+                        );
+                      })()}
+                      <div className="text-slate-500 text-xs mt-1">Net Edge</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-center text-sm">
                     <div>
-                      <div className="text-slate-400 text-xs">Net Edge</div>
-                      <div className={`font-semibold ${lastOpportunity.net_edge_bps >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {(lastOpportunity.net_edge_bps / 100)?.toFixed(2) || '0'}%
+                      <div className="text-slate-400 text-xs">Best Direction</div>
+                      <div className={`font-semibold ${lastOpportunity.direction === 'luno_to_binance' ? 'text-blue-400' : 'text-purple-400'}`}>
+                        {lastOpportunity.direction === 'luno_to_binance' ? 'L → B' : 'B → L'}
                       </div>
                     </div>
                     <div>

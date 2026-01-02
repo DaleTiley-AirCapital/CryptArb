@@ -70,6 +70,7 @@ Located in `/frontend/`:
 - `SLIPPAGE_BPS_BUFFER` - Slippage buffer in bps (default: 10)
 - `USD_ZAR_RATE` - USD to ZAR exchange rate (default: 18.5)
 - `ERROR_STOP_COUNT` - Stop after N consecutive errors (default: 5)
+- `KEEPALIVE_THRESHOLD_BPS` - Minimum net edge for keepalive trades in basis points (default: -20). Keepalive trades accept slightly negative spreads to maintain inventory cycling.
 
 See `.env.example` for full configuration template.
 
@@ -166,6 +167,11 @@ The bot maintains a rolling buffer of the last 6 price checks in memory for real
 **Data retention:** ~170k ticks/day at 500ms intervals. Consider archival strategy for long-term storage.
 
 ## Recent Changes
+- January 2, 2026: Added dual-direction spread calculation: bot now computes BOTH L→B and B→L net edge on every tick
+- January 2, 2026: Added keepalive trading strategy with KEEPALIVE_THRESHOLD_BPS config (-20 bps default)
+- January 2, 2026: Updated Live Spread Monitor to show both direction spreads side-by-side in real-time
+- January 2, 2026: Updated Net Edge status card to display both direction values
+- January 2, 2026: Refactored trade selection logic to use select_trade_direction() with dual-direction analysis
 - December 31, 2025: Split Net Edge Analysis by direction: B>L (left panel) and L>B (right panel) with per-direction stats
 - December 31, 2025: Added raw tick data table with toggle button and Excel (.xlsx) export functionality
 - December 31, 2025: Added /reports/net-edge-raw API endpoint for fetching raw tick data
