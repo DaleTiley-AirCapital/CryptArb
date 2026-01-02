@@ -168,6 +168,8 @@ The bot maintains a rolling buffer of the last 6 price checks in memory for real
 **Data retention:** ~170k ticks/day at 500ms intervals. Consider archival strategy for long-term storage.
 
 ## Recent Changes
+- January 2, 2026: Fixed arb_ticks to store BOTH directions (B→L and L→B) on every tick - previously only stored best direction
+- January 2, 2026: Net Edge Analysis now shows data for both directions with separate stats panels
 - January 2, 2026: Added USDT/USD rate fetching from Binance to account for USDT depeg from USD (0.1-0.5% correction)
 - January 2, 2026: Updated spread calculations to use USDT/ZAR rate instead of USD/ZAR for accurate Binance pricing
 - January 2, 2026: Live Spread Monitor now shows Binance Bid/Ask values matching Luno format

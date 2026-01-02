@@ -233,6 +233,71 @@ class FastArbitrageLoop:
             b2l_net_edge_bps=b2l_edge,
         )
     
+    def create_ticks_for_both_directions(self, luno_price: PriceData, binance_price: PriceData, spread_info: dict) -> list[TickData]:
+        min_net_edge = self.get_setting("MIN_NET_EDGE_BPS", 40)
+        slippage_bps = self.get_setting("SLIPPAGE_BPS_BUFFER", 10)
+        luno_fee = self.get_setting("LUNO_TRADING_FEE", 0.001)
+        binance_fee = self.get_setting("BINANCE_TRADING_FEE", 0.001)
+        total_fee_bps = int((luno_fee + binance_fee) * 10000)
+        
+        both = spread_info.get("both_directions", {})
+        if not both:
+            return [self.create_tick_from_spread(luno_price, binance_price, spread_info)]
+        
+        l2b_data = both.get("luno_to_binance", {})
+        b2l_data = both.get("binance_to_luno", {})
+        
+        timestamp = datetime.utcnow()
+        usd_zar_rate = spread_info.get("usd_zar_rate", 17.0)
+        
+        ticks = []
+        
+        b2l_tick = TickData(
+            timestamp=timestamp,
+            luno_bid=luno_price.bid,
+            luno_ask=luno_price.ask,
+            luno_last=luno_price.last,
+            binance_bid=binance_price.bid,
+            binance_ask=binance_price.ask,
+            binance_last=binance_price.last,
+            usd_zar_rate=usd_zar_rate,
+            spread_pct=b2l_data.get("gross_edge_bps", 0) / 100,
+            gross_edge_bps=b2l_data.get("gross_edge_bps", 0),
+            net_edge_bps=b2l_data.get("net_edge_bps", 0),
+            direction="binance_to_luno",
+            is_profitable=b2l_data.get("is_profitable", False),
+            min_edge_threshold_bps=int(min_net_edge),
+            slippage_bps=int(slippage_bps),
+            fee_bps=total_fee_bps,
+            l2b_net_edge_bps=l2b_data.get("net_edge_bps", 0),
+            b2l_net_edge_bps=b2l_data.get("net_edge_bps", 0),
+        )
+        ticks.append(b2l_tick)
+        
+        l2b_tick = TickData(
+            timestamp=timestamp,
+            luno_bid=luno_price.bid,
+            luno_ask=luno_price.ask,
+            luno_last=luno_price.last,
+            binance_bid=binance_price.bid,
+            binance_ask=binance_price.ask,
+            binance_last=binance_price.last,
+            usd_zar_rate=usd_zar_rate,
+            spread_pct=l2b_data.get("gross_edge_bps", 0) / 100,
+            gross_edge_bps=l2b_data.get("gross_edge_bps", 0),
+            net_edge_bps=l2b_data.get("net_edge_bps", 0),
+            direction="luno_to_binance",
+            is_profitable=l2b_data.get("is_profitable", False),
+            min_edge_threshold_bps=int(min_net_edge),
+            slippage_bps=int(slippage_bps),
+            fee_bps=total_fee_bps,
+            l2b_net_edge_bps=l2b_data.get("net_edge_bps", 0),
+            b2l_net_edge_bps=b2l_data.get("net_edge_bps", 0),
+        )
+        ticks.append(l2b_tick)
+        
+        return ticks
+    
     def add_tick_to_buffer(self, tick: TickData):
         if len(self._tick_buffer) >= self.TICK_BUFFER_SIZE:
             oldest_tick = self._tick_buffer[0]
@@ -846,8 +911,9 @@ class FastArbitrageLoop:
                 self.consecutive_errors += 1
                 return
             
-            tick = self.create_tick_from_spread(luno_price, binance_price, spread_info)
-            self.add_tick_to_buffer(tick)
+            ticks = self.create_ticks_for_both_directions(luno_price, binance_price, spread_info)
+            for tick in ticks:
+                self.add_tick_to_buffer(tick)
             
             if config.is_paper_mode() and not self._paper_floats_initialized:
                 self.initialize_paper_floats(luno_price.last)
