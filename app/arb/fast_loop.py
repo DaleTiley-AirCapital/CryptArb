@@ -127,7 +127,8 @@ class FastArbitrageLoop:
         }
 
     async def calculate_spread(self, luno_price: PriceData, binance_price: PriceData) -> dict:
-        usd_zar_rate = await fx_service.get_usd_zar_rate()
+        usdt_zar_rate = await fx_service.get_usdt_zar_rate()
+        usdt_usd_rate = fx_service.get_cached_usdt_usd_rate() or 1.0
         slippage_bps = self.get_setting("SLIPPAGE_BPS_BUFFER", 10)
         luno_fee = self.get_setting("LUNO_TRADING_FEE", 0.001)
         binance_fee = self.get_setting("BINANCE_TRADING_FEE", 0.001)
@@ -146,14 +147,14 @@ class FastArbitrageLoop:
         if luno_price.last == 0 or binance_price.last == 0:
             return error_result
         
-        luno_usd = luno_price.last / usd_zar_rate
-        binance_usd = binance_price.last
+        luno_usd = luno_price.last / usdt_zar_rate
+        binance_usdt = binance_price.last
         slippage_factor = slippage_bps / 10000
         
         l2b = self._calculate_single_direction("luno_to_binance", luno_price, binance_price, 
-                                                usd_zar_rate, slippage_factor, luno_fee, binance_fee, min_net_edge)
+                                                usdt_zar_rate, slippage_factor, luno_fee, binance_fee, min_net_edge)
         b2l = self._calculate_single_direction("binance_to_luno", luno_price, binance_price, 
-                                                usd_zar_rate, slippage_factor, luno_fee, binance_fee, min_net_edge)
+                                                usdt_zar_rate, slippage_factor, luno_fee, binance_fee, min_net_edge)
         
         if l2b["net_edge_bps"] >= b2l["net_edge_bps"]:
             best = l2b
@@ -172,8 +173,9 @@ class FastArbitrageLoop:
             "sell_price": best["sell_price"],
             "luno_zar": luno_price.last,
             "luno_usd": luno_usd,
-            "binance_usd": binance_usd,
-            "usd_zar_rate": usd_zar_rate,
+            "binance_usdt": binance_usdt,
+            "usdt_zar_rate": usdt_zar_rate,
+            "usdt_usd_rate": usdt_usd_rate,
             "luno_bid": luno_price.bid,
             "luno_ask": luno_price.ask,
             "binance_bid": binance_price.bid,
@@ -216,7 +218,7 @@ class FastArbitrageLoop:
             binance_bid=binance_price.bid,
             binance_ask=binance_price.ask,
             binance_last=binance_price.last,
-            usd_zar_rate=spread_info.get("usd_zar_rate", 17.0),
+            usd_zar_rate=spread_info.get("usdt_zar_rate", spread_info.get("usd_zar_rate", 17.0)),
             spread_pct=spread_info.get("spread_percent", 0),
             gross_edge_bps=spread_info.get("gross_edge_bps", 0),
             net_edge_bps=spread_info.get("net_edge_bps", 0),
@@ -326,7 +328,7 @@ class FastArbitrageLoop:
                 was_executed=1 if was_executed else 0,
                 reason_skipped=reason_skipped,
                 luno_price_zar=spread_info.get("luno_zar"),
-                binance_price_usd=spread_info["binance_usd"]
+                binance_price_usd=spread_info.get("binance_usdt", spread_info.get("binance_usd", 0))
             )
             db.add(opportunity)
             db.commit()
@@ -495,8 +497,8 @@ class FastArbitrageLoop:
             "sell_price": direction_data.get("sell_price", 0),
             "luno_zar": base_spread.get("luno_zar", 0),
             "luno_usd": base_spread.get("luno_usd", 0),
-            "binance_usd": base_spread.get("binance_usd", 0),
-            "usd_zar_rate": base_spread.get("usd_zar_rate", 17.0),
+            "binance_usdt": base_spread.get("binance_usdt", base_spread.get("binance_usd", 0)),
+            "usdt_zar_rate": base_spread.get("usdt_zar_rate", base_spread.get("usd_zar_rate", 17.0)),
             "luno_bid": base_spread.get("luno_bid", 0),
             "luno_ask": base_spread.get("luno_ask", 0),
             "binance_bid": base_spread.get("binance_bid", 0),
@@ -531,10 +533,10 @@ class FastArbitrageLoop:
             luno_zar = spread_info.get("luno_zar", 0)
             luno_bid = spread_info.get("luno_bid", luno_zar)
             luno_ask = spread_info.get("luno_ask", luno_zar)
-            binance_usd = spread_info.get("binance_usd", 0)
-            binance_bid = spread_info.get("binance_bid", binance_usd)
-            binance_ask = spread_info.get("binance_ask", binance_usd)
-            usd_zar = spread_info.get("usd_zar_rate", 17.0)
+            binance_usdt = spread_info.get("binance_usdt", spread_info.get("binance_usd", 0))
+            binance_bid = spread_info.get("binance_bid", binance_usdt)
+            binance_ask = spread_info.get("binance_ask", binance_usdt)
+            usdt_zar = spread_info.get("usdt_zar_rate", spread_info.get("usd_zar_rate", 17.0))
             
             luno_fee = self.get_setting("LUNO_TRADING_FEE", 0.001)
             binance_fee = self.get_setting("BINANCE_TRADING_FEE", 0.001)
@@ -544,11 +546,11 @@ class FastArbitrageLoop:
             if opposite_direction == "luno_to_binance":
                 buy_price = luno_ask * (1 + slippage_factor)
                 sell_price = binance_bid * (1 - slippage_factor)
-                gross_spread = (sell_price - (buy_price / usd_zar)) / (buy_price / usd_zar) if buy_price > 0 else 0
+                gross_spread = (sell_price - (buy_price / usdt_zar)) / (buy_price / usdt_zar) if buy_price > 0 else 0
             else:
                 buy_price = binance_ask * (1 + slippage_factor)
                 sell_price = luno_bid * (1 - slippage_factor)
-                gross_spread = ((sell_price / usd_zar) - buy_price) / buy_price if buy_price > 0 else 0
+                gross_spread = ((sell_price / usdt_zar) - buy_price) / buy_price if buy_price > 0 else 0
             
             total_fees = luno_fee + binance_fee
             net_edge = (gross_spread - total_fees) * 10000
@@ -560,10 +562,10 @@ class FastArbitrageLoop:
             luno_zar = spread_info.get("luno_zar", 0)
             luno_bid = spread_info.get("luno_bid", luno_zar)
             luno_ask = spread_info.get("luno_ask", luno_zar)
-            binance_usd = spread_info.get("binance_usd", 0)
-            binance_bid = spread_info.get("binance_bid", binance_usd)
-            binance_ask = spread_info.get("binance_ask", binance_usd)
-            usd_zar = spread_info.get("usd_zar_rate", 17.0)
+            binance_usdt = spread_info.get("binance_usdt", spread_info.get("binance_usd", 0))
+            binance_bid = spread_info.get("binance_bid", binance_usdt)
+            binance_ask = spread_info.get("binance_ask", binance_usdt)
+            usdt_zar = spread_info.get("usdt_zar_rate", spread_info.get("usd_zar_rate", 17.0))
             luno_fee = self.get_setting("LUNO_TRADING_FEE", 0.001)
             binance_fee = self.get_setting("BINANCE_TRADING_FEE", 0.001)
             slippage_factor = self.get_setting("SLIPPAGE_BPS_BUFFER", 10) / 10000
@@ -594,10 +596,10 @@ class FastArbitrageLoop:
                 "luno_zar": luno_zar,
                 "luno_bid": luno_bid,
                 "luno_ask": luno_ask,
-                "binance_usd": binance_usd,
+                "binance_usdt": binance_usdt,
                 "binance_bid": binance_bid,
                 "binance_ask": binance_ask,
-                "usd_zar_rate": usd_zar,
+                "usdt_zar_rate": usdt_zar,
             }
             
             btc_amount, trade_size_zar = self.calculate_trade_size(rebalance_spread, opposite_direction)
@@ -621,8 +623,8 @@ class FastArbitrageLoop:
         max_trade_btc = self.get_setting("MAX_TRADE_SIZE_BTC", 0.01)
         min_trade_btc = self.get_setting("MIN_TRADE_SIZE_BTC", 0.0001)
         luno_zar_price = spread_info.get("luno_zar", 0)
-        binance_usd = spread_info.get("binance_usd", 0)
-        usd_zar_rate = spread_info.get("usd_zar_rate", 17.0)
+        binance_usdt = spread_info.get("binance_usdt", spread_info.get("binance_usd", 0))
+        usdt_zar_rate = spread_info.get("usdt_zar_rate", spread_info.get("usd_zar_rate", 17.0))
         
         if luno_zar_price <= 0:
             return 0.0, 0.0
@@ -641,7 +643,7 @@ class FastArbitrageLoop:
             else:
                 available_btc = tradeable["luno_btc"]
                 available_usdt = tradeable["binance_usdt"]
-                max_btc_from_usdt = available_usdt / binance_usd if binance_usd > 0 else 0
+                max_btc_from_usdt = available_usdt / binance_usdt if binance_usdt > 0 else 0
                 btc_amount = min(btc_amount, available_btc, max_btc_from_usdt)
             
             if btc_amount < min_trade_btc:
@@ -670,16 +672,16 @@ class FastArbitrageLoop:
             
             net_edge_pct = spread_info["net_edge_bps"] / 10000
             profit_zar = trade_size_zar * net_edge_pct
-            usd_zar_rate = spread_info.get("usd_zar_rate", 17.0)
-            profit_usd = profit_zar / usd_zar_rate
+            usdt_zar = spread_info.get("usdt_zar_rate", spread_info.get("usd_zar_rate", 17.0))
+            profit_usd = profit_zar / usdt_zar
             
             if direction == "luno_to_binance":
                 self._paper_floats["luno_zar"] -= trade_size_zar
                 self._paper_floats["luno_btc"] += btc_amount * (1 - luno_fee)
                 self._paper_floats["binance_btc"] -= btc_amount
-                self._paper_floats["binance_usdt"] += btc_amount * spread_info["binance_usd"] * (1 - binance_fee)
+                self._paper_floats["binance_usdt"] += btc_amount * spread_info.get("binance_usdt", spread_info.get("binance_usd", 0)) * (1 - binance_fee)
             else:
-                self._paper_floats["binance_usdt"] -= btc_amount * spread_info["binance_usd"]
+                self._paper_floats["binance_usdt"] -= btc_amount * spread_info.get("binance_usdt", spread_info.get("binance_usd", 0))
                 self._paper_floats["binance_btc"] += btc_amount * (1 - binance_fee)
                 self._paper_floats["luno_btc"] -= btc_amount
                 self._paper_floats["luno_zar"] += trade_size_zar * (1 - luno_fee)
@@ -747,8 +749,8 @@ class FastArbitrageLoop:
         profit_usd -= btc_amount * spread_info["buy_price"] * luno_fee
         profit_usd -= btc_amount * spread_info["sell_price"] * binance_fee
         
-        usd_zar_rate = spread_info.get("usd_zar_rate", 17.0)
-        profit_zar = profit_usd * usd_zar_rate
+        usdt_zar_rate = spread_info.get("usdt_zar_rate", spread_info.get("usd_zar_rate", 17.0))
+        profit_zar = profit_usd * usdt_zar_rate
         
         db = SessionLocal()
         try:
@@ -858,7 +860,7 @@ class FastArbitrageLoop:
             if self._stats["checks"] % 120 == 0:
                 is_paper = config.is_paper_mode()
                 mode_str = "[PAPER]" if is_paper else "[LIVE]"
-                usd_zar = spread_info.get('usd_zar_rate', 18.5)
+                usd_zar = spread_info.get('usdt_zar_rate', spread_info.get('usd_zar_rate', 18.5))
                 logger.info(
                     f"{mode_str} USD/ZAR: {usd_zar:.2f} | "
                     f"Luno: R{luno_price.last:.0f} | Binance: ${binance_price.last:.2f} | "
