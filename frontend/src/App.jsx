@@ -786,29 +786,12 @@ function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
             </button>
           ))}
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleToggleRawData}
-            className="px-3 py-1.5 text-sm bg-slate-700 text-slate-300 rounded hover:bg-slate-600 transition"
-          >
-            {loadingRaw ? 'Loading...' : showRawData ? 'Hide Raw Data' : 'Show Raw Data'}
-          </button>
-          <button
-            onClick={handleExportXLSX}
-            className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-500 transition flex items-center gap-1"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Export .xlsx
-          </button>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-slate-800/50 rounded-lg p-4 border border-blue-500/30">
           <h4 className="text-sm font-semibold text-blue-400 mb-3 flex items-center gap-2">
-            <span className="text-lg">←</span> Binance → Luno (B&gt;L)
+            Binance → Luno (B&gt;L)
             <span className="text-slate-400 font-normal ml-auto">{b2l?.count || 0} ticks</span>
           </h4>
           <DirectionStats data={b2l} label="B>L" colorClass="text-blue-400" />
@@ -816,7 +799,7 @@ function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
 
         <div className="bg-slate-800/50 rounded-lg p-4 border border-green-500/30">
           <h4 className="text-sm font-semibold text-green-400 mb-3 flex items-center gap-2">
-            Luno → Binance (L&gt;B) <span className="text-lg">→</span>
+            Luno → Binance (L&gt;B)
             <span className="text-slate-400 font-normal ml-auto">{l2b?.count || 0} ticks</span>
           </h4>
           <DirectionStats data={l2b} label="L>B" colorClass="text-green-400" />
@@ -826,12 +809,23 @@ function NetEdgeAnalysis({ data, hours, onHoursChange, currentThresholdBps }) {
       <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
         <div className="flex justify-between items-center mb-4">
           <h4 className="text-sm font-semibold text-slate-400">Raw Tick Data - Both Directions (Last 15 Ticks)</h4>
-          <button
-            onClick={handleToggleRawData}
-            className="text-xs px-2 py-1 bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 rounded border border-blue-600/30"
-          >
-            {showRawData ? 'Show Less' : 'View All'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleToggleRawData}
+              className="text-xs px-2 py-1 bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 rounded border border-blue-600/30"
+            >
+              {showRawData ? 'Show Less' : 'View All'}
+            </button>
+            <button
+              onClick={handleExportXLSX}
+              className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-500 transition flex items-center gap-1"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export .xlsx
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto max-h-96 overflow-y-auto">
           <table className="w-full text-xs">
